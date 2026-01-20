@@ -82,30 +82,90 @@ class ArchivePage(QWidget):
         super().__init__()
         layout = QVBoxLayout()
         
+        # Header
+        header_layout = QVBoxLayout()
         title = QLabel("웹페이지 아카이빙 / Archive Page")
-        title.setStyleSheet("font-size: 24px; color: #fff; margin-bottom: 20px;")
+        title.setStyleSheet("font-size: 24px; color: #fff; margin-bottom: 5px;")
+        subtitle = QLabel("모든 유형의 웹사이트(SPA, React, 동적 웹)를 원본 그대로 영구 박제합니다.")
+        subtitle.setStyleSheet("color: #aaa; font-size: 14px; margin-bottom: 20px;")
+        header_layout.addWidget(title)
+        header_layout.addWidget(subtitle)
         
+        # Input Container
         input_container = QFrame()
         input_container.setStyleSheet("background-color: #252525; border-radius: 8px; padding: 20px;")
         input_layout = QVBoxLayout(input_container)
         
+        # URL Input
         lbl_url = QLabel("Target URL")
         lbl_url.setStyleSheet("color: #ddd; font-weight: bold;")
         self.url_input = QLineEdit()
         self.url_input.setPlaceholderText("https://example.com/page-to-save")
-        self.url_input.setStyleSheet("padding: 10px; border: 1px solid #444; border-radius: 4px; background: #1a1a1a; color: white;")
+        self.url_input.setStyleSheet("padding: 10px; border: 1px solid #444; border-radius: 4px; background: #1a1a1a; color: white; font-size: 14px;")
+
+        # Options Grid
+        opts_lbl = QLabel("보존 형식 및 옵션 (Formats & Options)")
+        opts_lbl.setStyleSheet("color: #00bbff; font-weight: bold; margin-top: 15px; margin-bottom: 5px;")
         
+        from PySide6.QtWidgets import QCheckBox, QGroupBox, QGridLayout
+        
+        opts_group = QGroupBox()
+        opts_group.setStyleSheet("border: none;")
+        grid = QGridLayout(opts_group)
+        grid.setContentsMargins(0, 0, 0, 0)
+        
+        # Dynamic / Interactive
+        self.chk_wacz = QCheckBox("WACZ (Interactive/SPA)")
+        self.chk_wacz.setToolTip("ArchiveWeb.page를 사용하여 클릭 가능한 동적 아카이브 생성 (React/Vue 등 지원)")
+        self.chk_wacz.setChecked(True)
+        self.chk_wacz.setStyleSheet("color: #e0e0e0;")
+
+        # Single File
+        self.chk_singlefile = QCheckBox("SingleFile HTML")
+        self.chk_singlefile.setToolTip("모든 리소스를 하나의 HTML 파일로 압축 저장")
+        self.chk_singlefile.setChecked(True)
+        self.chk_singlefile.setStyleSheet("color: #e0e0e0;")
+
+        # Capture Types
+        self.chk_pdf = QCheckBox("PDF Document")
+        self.chk_pdf.setStyleSheet("color: #e0e0e0;")
+        self.chk_screenshot = QCheckBox("Full Screenshot (PNG)")
+        self.chk_screenshot.setStyleSheet("color: #e0e0e0;")
+        
+        # Deep Archive / Assets
+        self.chk_warc = QCheckBox("Standard WARC")
+        self.chk_warc.setToolTip("국제 표준 웹 아카이빙 포맷")
+        self.chk_warc.setStyleSheet("color: #e0e0e0;")
+        
+        self.chk_git = QCheckBox("Git Repository Clone")
+        self.chk_git.setToolTip("URL이 Git 저장소일 경우 전체 소스 코드 클론")
+        self.chk_git.setStyleSheet("color: #e0e0e0;")
+
+        self.chk_media = QCheckBox("Media & Assets (DL)")
+        self.chk_media.setToolTip("이미지, 비디오, 오디오 및 CDN 자산 다운로드")
+        self.chk_media.setStyleSheet("color: #e0e0e0;")
+
+        grid.addWidget(self.chk_wacz, 0, 0)
+        grid.addWidget(self.chk_singlefile, 0, 1)
+        grid.addWidget(self.chk_pdf, 1, 0)
+        grid.addWidget(self.chk_screenshot, 1, 1)
+        grid.addWidget(self.chk_warc, 2, 0)
+        grid.addWidget(self.chk_media, 2, 1)
+        grid.addWidget(self.chk_git, 3, 0)
+
+        # Action Button
         btn_layout = QHBoxLayout()
-        self.btn_archive = QPushButton("아카이빙 시작 (Start)")
+        self.btn_archive = QPushButton("아카이빙 시작 (Start Processing)")
         self.btn_archive.setCursor(Qt.PointingHandCursor)
         self.btn_archive.setStyleSheet("""
             QPushButton {
                 background-color: #0077cc;
                 color: white;
-                padding: 10px 20px;
-                border-radius: 4px;
+                padding: 12px 24px;
+                border-radius: 6px;
                 font-weight: bold;
                 border: none;
+                font-size: 15px;
             }
             QPushButton:hover { background-color: #0088dd; }
             QPushButton:pressed { background-color: #0066aa; }
@@ -116,12 +176,16 @@ class ArchivePage(QWidget):
         
         input_layout.addWidget(lbl_url)
         input_layout.addWidget(self.url_input)
+        input_layout.addWidget(opts_lbl)
+        input_layout.addWidget(opts_group)
         input_layout.addLayout(btn_layout)
         
-        self.log_output = QLabel("대기 중...")
-        self.log_output.setStyleSheet("color: #666; margin-top: 10px;")
+        # Log Output
+        self.log_output = QLabel("시스템 대기 중... URL을 입력하세요.")
+        self.log_output.setStyleSheet("color: #666; margin-top: 15px; font-family: monospace;")
+        self.log_output.setWordWrap(True)
         
-        layout.addWidget(title)
+        layout.addLayout(header_layout)
         layout.addWidget(input_container)
         layout.addWidget(self.log_output)
         layout.addStretch()
@@ -132,12 +196,21 @@ class ArchivePage(QWidget):
     def start_archive(self):
         url = self.url_input.text()
         if not url:
-            self.log_output.setText("URL을 입력해주세요.")
-            self.log_output.setStyleSheet("color: #ff5555; margin-top: 10px;")
+            self.log_output.setText("⚠ URL을 입력해주세요.")
+            self.log_output.setStyleSheet("color: #ff5555; margin-top: 15px; font-family: monospace;")
             return
             
-        self.log_output.setText(f"작업 큐에 추가됨: {url}")
-        self.log_output.setStyleSheet("color: #00cc00; margin-top: 10px;")
+        selected_modes = []
+        if self.chk_wacz.isChecked(): selected_modes.append("WACZ")
+        if self.chk_singlefile.isChecked(): selected_modes.append("SingleFile")
+        if self.chk_pdf.isChecked(): selected_modes.append("PDF")
+        if self.chk_screenshot.isChecked(): selected_modes.append("Screenshot")
+        if self.chk_warc.isChecked(): selected_modes.append("WARC")
+        if self.chk_media.isChecked(): selected_modes.append("Media")
+        
+        mode_str = ", ".join(selected_modes)
+        self.log_output.setText(f"🚀 작업 시작됨: {url}\n[모드]: {mode_str}\n(백그라운드 엔진이 외부 리소스 및 동적 콘텐츠를 수집합니다...)")
+        self.log_output.setStyleSheet("color: #00cc00; margin-top: 15px; font-family: monospace;")
 
 class EternalWindow(QMainWindow):
     def __init__(self):

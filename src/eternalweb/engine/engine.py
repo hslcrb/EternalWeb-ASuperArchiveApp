@@ -45,6 +45,48 @@ class Archiver:
     def __init__(self):
         self.active_jobs = []
 
-    def archive_url(self, url, method="auto"):
-        print(f"Engine Dispatch: {url} -> {method}")
-        # Logic to dispatch to components
+    def archive_url(self, url, options=None):
+        if options is None:
+            options = ["WACZ", "SingleFile"] # Defaults
+
+        print(f"⚡ Engine Dispatch: {url}")
+        print(f"   Options: {options}")
+        
+        # 1. ArchiveWeb.page (WACZ) - Best for SPA/Dynamic
+        if "WACZ" in options:
+            self.run_interactive_archiver(url)
+            
+        # 2. SingleFile - Best for DOM Snapshot
+        if "SingleFile" in options:
+            self.run_singlefile(url)
+            
+        # 3. ArchiveBox - Best for Static/Assets/PDF
+        if "WARC" in options or "Media" in options or "PDF" in options:
+            extractors = []
+            if "WARC" in options: extractors.append("wget")
+            if "PDF" in options: extractors.append("pdf")
+            if "Media" in options: extractors.append("media")
+            if "Screenshot" in options: extractors.append("screenshot")
+            
+            self.run_archivebox(url, extractors)
+
+    def run_interactive_archiver(self, url):
+        # Requires aw-page CLI or embedding
+        print(f"[ArchiveWeb] Capturing interactive session for {url} (WACZ)...")
+        # subprocess.run(["npx", "archiveweb.page", "record", url, ...]) 
+        # Placeholder for actual command execution logic
+        
+    def run_singlefile(self, url):
+        # Requires Node.js
+        print(f"[SingleFile] Freezing DOM state for {url}...")
+        # out_path = ...
+        # subprocess.run(["./src/eternalweb/components/singlefile/cli.js", url, ...])
+        
+    def run_archivebox(self, url, extractors):
+        print(f"[ArchiveBox] Deep archiving {url} with {extractors}...")
+        try:
+            from .archivebox.cli import main
+            # In-process call might need environment setup, or better use subprocess for isolation
+            # subprocess.run(["archivebox", "add", url, "--extract=" + ",".join(extractors)])
+        except ImportError:
+            print("ArchiveBox module not loaded.")
