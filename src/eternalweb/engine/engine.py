@@ -15,6 +15,9 @@ CORE_DIR = Path(__file__).parent
 COMPONENTS_DIR = CORE_DIR.parent / "components"
 ARCHIVEBOX_DIR = CORE_DIR / "archivebox" # Moved here earlier
 
+# Legacy Support: Add core dir to sys.path so 'import archivebox' works
+sys.path.append(str(CORE_DIR))
+
 def init_engine():
     """Initialize the archiving engine and dependencies."""
     print(f"EternalWeb 엔진 코어 초기화 중...")

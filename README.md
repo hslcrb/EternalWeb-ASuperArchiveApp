@@ -8,6 +8,10 @@ EternalWeb은 전설적인 웹 아카이빙 도구인 **ArchiveBox**, **ArchiveW
 ![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
 ![Status](https://img.shields.io/badge/status-active-success)
 
+> **⚠️ 프로젝트 상태**: 본 소프트웨어는 현재 **초기 개발 단계 (Pre-Alpha)**입니다. 아직 정식 릴리즈가 이루어지지 않았습니다.
+> 
+> **🗓️ 최초 클론 및 개발 시작**: 20260120 한국표준시 KST 화요일
+
 ## 🚀 주요 기능 (Key Features)
 
 ### 1. 통합 아카이빙 엔진 (Unified Engine)
