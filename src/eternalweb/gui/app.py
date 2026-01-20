@@ -52,15 +52,15 @@ class DashboardPage(QWidget):
         super().__init__()
         layout = QVBoxLayout()
         
-        title = QLabel("EternalWeb Dashboard")
+        title = QLabel("EternalWeb 대시보드")
         title.setStyleSheet("font-size: 28px; font-weight: bold; color: #fff;")
         
         stat_frame = QFrame()
         stat_frame.setStyleSheet("background-color: #252525; border-radius: 8px; padding: 20px;")
         stat_layout = QHBoxLayout(stat_frame)
         
-        self.stat_total = QLabel("Total Archives: 0")
-        self.stat_engine = QLabel("Engines: Ready")
+        self.stat_total = QLabel("총 아카이브: 0")
+        self.stat_engine = QLabel("엔진 상태: 준비됨")
         self.stat_total.setStyleSheet("font-size: 18px; color: #00bbff;")
         self.stat_engine.setStyleSheet("font-size: 18px; color: #ffcc00;")
         
@@ -97,10 +97,10 @@ class ArchivePage(QWidget):
         input_layout = QVBoxLayout(input_container)
         
         # URL Input
-        lbl_url = QLabel("Target URL")
+        lbl_url = QLabel("대상 URL (Target URL)")
         lbl_url.setStyleSheet("color: #ddd; font-weight: bold;")
         self.url_input = QLineEdit()
-        self.url_input.setPlaceholderText("https://example.com/page-to-save")
+        self.url_input.setPlaceholderText("https://example.com/저장할-페이지")
         self.url_input.setStyleSheet("padding: 10px; border: 1px solid #444; border-radius: 4px; background: #1a1a1a; color: white; font-size: 14px;")
 
         # Options Grid

@@ -17,19 +17,19 @@ ARCHIVEBOX_DIR = CORE_DIR / "archivebox" # Moved here earlier
 
 def init_engine():
     """Initialize the archiving engine and dependencies."""
-    print(f"Initializing EternalWeb Engine Core...")
-    print(f"Components Path: {COMPONENTS_DIR}")
+    print(f"EternalWeb 엔진 코어 초기화 중...")
+    print(f"구성 요소 경로: {COMPONENTS_DIR}")
     
     # Check Components
     if (COMPONENTS_DIR / "singlefile").exists():
-        print("✔ Component Loaded: SingleFile (High Fidelity)")
+        print("✔ 구성 요소 로드됨: SingleFile (고해상도)")
     else:
-        print("✘ Component Missing: SingleFile")
+        print("✘ 구성 요소 누락: SingleFile")
 
     if (COMPONENTS_DIR / "webpage").exists():
-        print("✔ Component Loaded: ArchiveWeb.page (Interactive)")
+        print("✔ 구성 요소 로드됨: ArchiveWeb.page (대화형 아카이브)")
     else:
-        print("✘ Component Missing: ArchiveWeb.page")
+        print("✘ 구성 요소 누락: ArchiveWeb.page")
 
     # Verify ArchiveBox
     try:
@@ -37,9 +37,9 @@ def init_engine():
         # we need to make sure it's importable.
         # It's a subdirectory here, so it should be fine if __init__.py exists.
         from . import archivebox
-        print(f"✔ Core Loaded: ArchiveBox Legacy Engine")
+        print(f"✔ 코어 로드됨: ArchiveBox 레거시 엔진")
     except ImportError as e:
-        print(f"⚠ ArchiveBox Import Issue: {e}")
+        print(f"⚠ ArchiveBox 임포트 문제 발생: {e}")
 
 class Archiver:
     def __init__(self):
@@ -49,8 +49,8 @@ class Archiver:
         if options is None:
             options = ["WACZ", "SingleFile"] # Defaults
 
-        print(f"⚡ Engine Dispatch: {url}")
-        print(f"   Options: {options}")
+        print(f"⚡ 엔진 디스패치: {url}")
+        print(f"   옵션: {options}")
         
         # 1. ArchiveWeb.page (WACZ) - Best for SPA/Dynamic
         if "WACZ" in options:
@@ -72,21 +72,21 @@ class Archiver:
 
     def run_interactive_archiver(self, url):
         # Requires aw-page CLI or embedding
-        print(f"[ArchiveWeb] Capturing interactive session for {url} (WACZ)...")
+        print(f"[ArchiveWeb] {url}의 대화형 세션 캡처 중 (WACZ)...")
         # subprocess.run(["npx", "archiveweb.page", "record", url, ...]) 
         # Placeholder for actual command execution logic
         
     def run_singlefile(self, url):
         # Requires Node.js
-        print(f"[SingleFile] Freezing DOM state for {url}...")
+        print(f"[SingleFile] {url}의 DOM 상태를 고정 중...")
         # out_path = ...
         # subprocess.run(["./src/eternalweb/components/singlefile/cli.ts", url, ...])
         
     def run_archivebox(self, url, extractors):
-        print(f"[ArchiveBox] Deep archiving {url} with {extractors}...")
+        print(f"[ArchiveBox] {url} 심층 아카이빙 중 (추출기: {extractors})...")
         try:
             from .archivebox.cli import main
             # In-process call might need environment setup, or better use subprocess for isolation
             # subprocess.run(["archivebox", "add", url, "--extract=" + ",".join(extractors)])
         except ImportError:
-            print("ArchiveBox module not loaded.")
+            print("ArchiveBox 모듈이 로드되지 않았습니다.")
