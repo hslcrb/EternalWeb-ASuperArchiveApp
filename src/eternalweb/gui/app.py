@@ -37,10 +37,10 @@ class ModernNavBar(QListWidget):
                 background-color: #222;
             }
         """)
-        self.add_nav_item("대시보드 / Dashboard", "dashboard")
-        self.add_nav_item("새 아카이브 / New", "add_box")
-        self.add_nav_item("라이브러리 / Library", "library_books")
-        self.add_nav_item("설정 / Settings", "settings")
+        self.add_nav_item("대시보드 (Dashboard)", "dashboard")
+        self.add_nav_item("새 아카이브 (New Archive)", "add_box")
+        self.add_nav_item("라이브러리 (Library)", "library_books")
+        self.add_nav_item("설정 (Settings)", "settings")
 
     def add_nav_item(self, text, icon_name):
         item = QListWidgetItem(text)
@@ -115,33 +115,33 @@ class ArchivePage(QWidget):
         grid.setContentsMargins(0, 0, 0, 0)
         
         # Dynamic / Interactive
-        self.chk_wacz = QCheckBox("WACZ (Interactive/SPA)")
+        self.chk_wacz = QCheckBox("WACZ (대화형/SPA)")
         self.chk_wacz.setToolTip("ArchiveWeb.page를 사용하여 클릭 가능한 동적 아카이브 생성 (React/Vue 등 지원)")
         self.chk_wacz.setChecked(True)
         self.chk_wacz.setStyleSheet("color: #e0e0e0;")
 
         # Single File
-        self.chk_singlefile = QCheckBox("SingleFile HTML")
+        self.chk_singlefile = QCheckBox("SingleFile HTML (단일 파일)")
         self.chk_singlefile.setToolTip("모든 리소스를 하나의 HTML 파일로 압축 저장")
         self.chk_singlefile.setChecked(True)
         self.chk_singlefile.setStyleSheet("color: #e0e0e0;")
 
         # Capture Types
-        self.chk_pdf = QCheckBox("PDF Document")
+        self.chk_pdf = QCheckBox("PDF 문서 (Document)")
         self.chk_pdf.setStyleSheet("color: #e0e0e0;")
-        self.chk_screenshot = QCheckBox("Full Screenshot (PNG)")
+        self.chk_screenshot = QCheckBox("전체 스크린샷 (Screenshot)")
         self.chk_screenshot.setStyleSheet("color: #e0e0e0;")
         
         # Deep Archive / Assets
-        self.chk_warc = QCheckBox("Standard WARC")
+        self.chk_warc = QCheckBox("표준 WARC (Standard)")
         self.chk_warc.setToolTip("국제 표준 웹 아카이빙 포맷")
         self.chk_warc.setStyleSheet("color: #e0e0e0;")
         
-        self.chk_git = QCheckBox("Git Repository Clone")
+        self.chk_git = QCheckBox("Git 저장소 클론 (Repository)")
         self.chk_git.setToolTip("URL이 Git 저장소일 경우 전체 소스 코드 클론")
         self.chk_git.setStyleSheet("color: #e0e0e0;")
 
-        self.chk_media = QCheckBox("Media & Assets (DL)")
+        self.chk_media = QCheckBox("미디어 및 자산 (Media/Assets)")
         self.chk_media.setToolTip("이미지, 비디오, 오디오 및 CDN 자산 다운로드")
         self.chk_media.setStyleSheet("color: #e0e0e0;")
 
