@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.idea/
+.vscode/
+
+# Cloned repositories (Reference/External)
+ArchiveBox/
+archiveweb.page/
+SingleFile/
