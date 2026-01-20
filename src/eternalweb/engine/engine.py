@@ -80,7 +80,7 @@ class Archiver:
         # Requires Node.js
         print(f"[SingleFile] Freezing DOM state for {url}...")
         # out_path = ...
-        # subprocess.run(["./src/eternalweb/components/singlefile/cli.js", url, ...])
+        # subprocess.run(["./src/eternalweb/components/singlefile/cli.ts", url, ...])
         
     def run_archivebox(self, url, extractors):
         print(f"[ArchiveBox] Deep archiving {url} with {extractors}...")
