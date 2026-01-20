@@ -1,145 +1,219 @@
-
 import sys
 import os
-import threading
-from PyQt6.QtWidgets import QApplication, QMainWindow, QTabWidget, QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit, QTextEdit
-from PyQt6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QStackedWidget, QListWidget, QListWidgetItem, QFrame
+from PySide6.QtGui import QIcon, QFont, QPalette, QColor, QAction
+from PySide6.QtCore import Qt, QSize
 
-# 1. Setup Paths
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(BASE_DIR) # Allow importing eternalweb
-sys.path.append(os.path.join(BASE_DIR, 'eternalweb', 'core')) # Allow importing archivebox legacy
-
-# 2. Configure Django Environment (Essential for ArchiveBox)
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "archivebox.core.settings")
-
-# 3. Import Core
-# We import inside main or try block to handle missing deps
+# Engine Import
 try:
     from eternalweb.core.engine import init_engine, Archiver
-except ImportError as e:
-    print(f"Setup Error: {e}")
+except ImportError:
     init_engine = None
+    Archiver = None
 
-class EternalWindow(QMainWindow):
+class ModernNavBar(QListWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedWidth(200)
+        self.setStyleSheet("""
+            QListWidget {
+                background-color: #1a1a1a;
+                border: none;
+                outline: none;
+            }
+            QListWidget::item {
+                color: #a0a0a0;
+                padding: 15px;
+                font-size: 14px;
+                border-left: 3px solid transparent;
+            }
+            QListWidget::item:selected {
+                color: #ffffff;
+                background-color: #252525;
+                border-left: 3px solid #00bbff;
+            }
+            QListWidget::item:hover {
+                background-color: #222;
+            }
+        """)
+        self.add_nav_item("Dashboard", "dashboard")
+        self.add_nav_item("New Archive", "add_box")
+        self.add_nav_item("Library", "library_books")
+        self.add_nav_item("Settings", "settings")
+
+    def add_nav_item(self, text, icon_name):
+        item = QListWidgetItem(text)
+        item.setSizeHint(QSize(0, 50))
+        # Icon usage creates dependencies on assets, using text only for now for robustness
+        # icon = QIcon(f"assets/icons/{icon_name}.png")
+        # item.setIcon(icon)
+        self.addItem(item)
+
+class DashboardPage(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("EternalWeb - Integrated Archiving Tool")
-        self.setGeometry(100, 100, 1200, 800)
-        
-        self.archiver = Archiver() if init_engine else None
-        
-        # UI
-        self.tabs = QTabWidget()
-        self.setCentralWidget(self.tabs)
-        
-        self.setup_styles()
-        self.create_dashboard()
-        self.create_capture_ui()
-        self.create_console()
-
-    def setup_styles(self):
-        self.setStyleSheet("""
-            QMainWindow { background-color: #1a1a1a; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; }
-            QTabWidget::pane { border: 1px solid #333; }
-            QTabBar::tab { background: #2a2a2a; color: #aaa; padding: 12px 20px; border-top-left-radius: 4px; border-top-right-radius: 4px; margin-right: 2px; }
-            QTabBar::tab:selected { background: #3a3a3a; color: #ffffff; border-bottom: 2px solid #00bbff; }
-            QLineEdit { padding: 8px; border-radius: 4px; border: 1px solid #444; background: #252525; color: white; }
-            QPushButton { padding: 8px 16px; border-radius: 4px; background: #0077cc; color: white; border: none; }
-            QPushButton:hover { background: #0088dd; }
-            QTextEdit { background: #111; color: #0f0; font-family: monospace; border: 1px solid #333; }
-        """)
-
-    def create_dashboard(self):
-        tab = QWidget()
         layout = QVBoxLayout()
         
-        title = QLabel("EternalWeb")
-        title.setStyleSheet("font-size: 32px; font-weight: bold; color: #00bbff;")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title = QLabel("EternalWeb Dashboard")
+        title.setStyleSheet("font-size: 28px; font-weight: bold; color: #fff;")
         
-        subtitle = QLabel("The Super Archive App")
-        subtitle.setStyleSheet("font-size: 16px; color: #888;")
-        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        stat_frame = QFrame()
+        stat_frame.setStyleSheet("background-color: #252525; border-radius: 8px; padding: 20px;")
+        stat_layout = QHBoxLayout(stat_frame)
         
-        layout.addStretch()
+        self.stat_total = QLabel("Total Archives: 0")
+        self.stat_queue = QLabel("Queue: Idle")
+        self.stat_total.setStyleSheet("font-size: 18px; color: #00bbff;")
+        self.stat_queue.setStyleSheet("font-size: 18px; color: #ffcc00;")
+        
+        stat_layout.addWidget(self.stat_total)
+        stat_layout.addStretch()
+        stat_layout.addWidget(self.stat_queue)
+        
+        info = QLabel("Welcome to the integrated web archiving solution.\nPowered by ArchiveBox, ArchiveWeb.page, and SingleFile.")
+        info.setStyleSheet("color: #aaa; margin-top: 20px; font-size: 14px;")
+        
         layout.addWidget(title)
-        layout.addWidget(subtitle)
+        layout.addWidget(stat_frame)
+        layout.addWidget(info)
         layout.addStretch()
-        
-        tab.setLayout(layout)
-        self.tabs.addTab(tab, "Dashboard")
+        self.setLayout(layout)
 
-    def create_capture_ui(self):
-        tab = QWidget()
+class ArchivePage(QWidget):
+    def __init__(self):
+        super().__init__()
         layout = QVBoxLayout()
         
-        input_layout = QVBoxLayout()
-        lbl = QLabel("Target URL:")
+        title = QLabel("New Archive")
+        title.setStyleSheet("font-size: 24px; color: #fff; margin-bottom: 20px;")
+        
+        input_container = QFrame()
+        input_container.setStyleSheet("background-color: #252525; border-radius: 8px; padding: 20px;")
+        input_layout = QVBoxLayout(input_container)
+        
+        lbl_url = QLabel("Target URL")
+        lbl_url.setStyleSheet("color: #ddd; font-weight: bold;")
         self.url_input = QLineEdit()
-        self.url_input.setPlaceholderText("https://example.com")
+        self.url_input.setPlaceholderText("https://example.com/page-to-save")
+        self.url_input.setStyleSheet("padding: 10px; border: 1px solid #444; border-radius: 4px; background: #1a1a1a; color: white;")
         
-        btn = QPushButton("Archive Now")
-        btn.clicked.connect(self.start_archive)
+        btn_layout = QHBoxLayout()
+        self.btn_archive = QPushButton("Start Archiving")
+        self.btn_archive.setCursor(Qt.PointingHandCursor)
+        self.btn_archive.setStyleSheet("""
+            QPushButton {
+                background-color: #0077cc;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 4px;
+                font-weight: bold;
+                border: none;
+            }
+            QPushButton:hover { background-color: #0088dd; }
+            QPushButton:pressed { background-color: #0066aa; }
+        """)
         
-        input_layout.addWidget(lbl)
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.btn_archive)
+        
+        input_layout.addWidget(lbl_url)
         input_layout.addWidget(self.url_input)
-        input_layout.addWidget(btn)
+        input_layout.addLayout(btn_layout)
         
-        layout.addLayout(input_layout)
+        self.log_output = QLabel("Ready...")
+        self.log_output.setStyleSheet("color: #666; margin-top: 10px;")
+        
+        layout.addWidget(title)
+        layout.addWidget(input_container)
+        layout.addWidget(self.log_output)
         layout.addStretch()
-        tab.setLayout(layout)
-        self.tabs.addTab(tab, "Capture")
+        self.setLayout(layout)
 
-    def create_console(self):
-        tab = QWidget()
-        layout = QVBoxLayout()
-        self.console_out = QTextEdit()
-        self.console_out.setReadOnly(True)
-        layout.addWidget(self.console_out)
-        tab.setLayout(layout)
-        self.tabs.addTab(tab, "Log")
-
-    def log(self, text):
-        self.console_out.append(text)
+        self.btn_archive.clicked.connect(self.start_archive)
 
     def start_archive(self):
         url = self.url_input.text()
         if not url:
-            self.log("Error: No URL provided")
+            self.log_output.setText("Please enter a URL.")
+            self.log_output.setStyleSheet("color: #ff5555; margin-top: 10px;")
             return
             
-        self.log(f"Starting archive for: {url}")
+        self.log_output.setText(f"Queued: {url}")
+        self.log_output.setStyleSheet("color: #00cc00; margin-top: 10px;")
+        # Integration point with engine would go here
+
+class EternalWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("EternalWeb")
+        self.resize(1200, 800)
+        self.setup_ui()
         
-        # Run in thread to not freeze UI
-        t = threading.Thread(target=self._run_archive_thread, args=(url,))
-        t.start()
+    def setup_ui(self):
+        # Central Widget
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
         
-    def _run_archive_thread(self, url):
-        # This is a demo integration
-        try:
-            if self.archiver:
-                self.archiver.archive_url(url)
-                # We can't update GUI directly from thread in strict Qt, but append is usually safe-ish or use signals.
-                # For safety/simple demo:
-                print(f"Archived {url}")
-        except Exception as e:
-            print(f"Archive failed: {e}")
+        # Main Layout (Horizontal: Nav | Content)
+        main_layout = QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # Navigation
+        self.navbar = ModernNavBar()
+        self.navbar.currentRowChanged.connect(self.change_page)
+        
+        # Pages Stack
+        self.pages = QStackedWidget()
+        self.pages.setStyleSheet("background-color: #121212;")
+        
+        # Add Pages
+        self.pages.addWidget(DashboardPage())
+        self.pages.addWidget(ArchivePage())
+        # Placeholders for others
+        self.pages.addWidget(QLabel("Library (Coming Soon)", alignment=Qt.AlignCenter))
+        self.pages.addWidget(QLabel("Settings (Coming Soon)", alignment=Qt.AlignCenter))
+        
+        main_layout.addWidget(self.navbar)
+        main_layout.addWidget(self.pages)
+        
+        # Default Selection
+        self.navbar.setCurrentRow(0)
+
+    def change_page(self, index):
+        self.pages.setCurrentIndex(index)
+
+def set_dark_theme(app):
+    app.setStyle("Fusion")
+    palette = QPalette()
+    palette.setColor(QPalette.Window, QColor(26, 26, 26))
+    palette.setColor(QPalette.WindowText, Qt.white)
+    palette.setColor(QPalette.Base, QColor(18, 18, 18))
+    palette.setColor(QPalette.AlternateBase, QColor(26, 26, 26))
+    palette.setColor(QPalette.ToolTipBase, Qt.white)
+    palette.setColor(QPalette.ToolTipText, Qt.white)
+    palette.setColor(QPalette.Text, Qt.white)
+    palette.setColor(QPalette.Button, QColor(26, 26, 26))
+    palette.setColor(QPalette.ButtonText, Qt.white)
+    palette.setColor(QPalette.BrightText, Qt.red)
+    palette.setColor(QPalette.Link, QColor(42, 130, 218))
+    palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+    palette.setColor(QPalette.HighlightedText, Qt.black)
+    app.setPalette(palette)
 
 def main():
     if init_engine:
         init_engine()
-    
-    # Init Django
-    try:
-        import django
-        django.setup()
-    except Exception as e:
-        print(f"Django Setup Warning: {e}")
-
+        
     app = QApplication(sys.argv)
+    set_dark_theme(app)
+    
+    font = QFont("Segoe UI", 10)
+    app.setFont(font)
+    
     window = EternalWindow()
     window.show()
+    
     sys.exit(app.exec())
 
 if __name__ == "__main__":
