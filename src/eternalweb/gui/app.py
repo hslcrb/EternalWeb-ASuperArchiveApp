@@ -243,7 +243,8 @@ class LibraryPage(QWidget):
 
     def on_selection_changed(self):
         idx = self.list_widget.currentRow()
-        if idx < 0: return
+        if idx < 0 or idx >= len(self.archives):
+            return
         
         item = self.archives[idx]
         self.detail_title.setText(item['url'])
@@ -258,17 +259,20 @@ class LibraryPage(QWidget):
 
     def open_html(self):
         idx = self.list_widget.currentRow()
+        if idx < 0 or idx >= len(self.archives): return
         path = Path(self.archives[idx]['path']) / "snapshot.html"
         if path.exists():
             webbrowser.open(f"file://{path.absolute()}")
 
     def open_wacz(self):
         idx = self.list_widget.currentRow()
+        if idx < 0 or idx >= len(self.archives): return
         # path = Path(self.archives[idx]['path']) / "interactive.wacz"
         webbrowser.open("https://replayweb.page/")
 
     def open_archivebox_index(self):
         idx = self.list_widget.currentRow()
+        if idx < 0 or idx >= len(self.archives): return
         # ArchiveBox usually has an index.html in the job directory
         path = Path(self.archives[idx]['path']) / "index.html"
         if path.exists():
@@ -279,6 +283,7 @@ class LibraryPage(QWidget):
 
     def open_folder(self):
         idx = self.list_widget.currentRow()
+        if idx < 0 or idx >= len(self.archives): return
         path = self.archives[idx]['path']
         if os.name == 'nt': os.startfile(path)
         elif sys.platform == 'darwin': subprocess.Popen(['open', path])
@@ -290,6 +295,7 @@ class LibraryPage(QWidget):
         reply = QMessageBox.question(self, '삭제 확인', '이 아카이브를 영구적으로 삭제하시겠습니까?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
             idx = self.list_widget.currentRow()
+            if idx < 0 or idx >= len(self.archives): return
             del_item = self.archives.pop(idx)
             
             # JSON 파일 업데이트
