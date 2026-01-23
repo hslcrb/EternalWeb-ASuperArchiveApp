@@ -93,9 +93,10 @@ class Archiver:
         return results
 
     def run_interactive_archiver(self, url, out_path):
-        self.log_fn(f"🚀 [Level 2] webrecorder 가동 중 (npx archiveweb.page)...")
+        self.log_fn(f"🚀 [Level 2] webrecorder 가동 중 (npx @webrecorder/archivewebpage-cli)...")
         try:
-            result = subprocess.run(["npx", "-y", "archiveweb.page", "record", url, "--output", str(out_path)], 
+            # Correcting package name and command
+            result = subprocess.run(["npx", "-y", "@webrecorder/archivewebpage-cli", "record", url, "--output", str(out_path)], 
                                     capture_output=True, text=True, check=False)
             if result.returncode != 0:
                 self.log_fn(f"❌ Level 2 실패: {result.stderr[-200:]}")
