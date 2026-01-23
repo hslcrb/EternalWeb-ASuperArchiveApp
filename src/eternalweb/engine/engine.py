@@ -50,8 +50,9 @@ def init_engine():
         print(f"⚠ ArchiveBox 임포트 문제 발생: {e}")
 
 class Archiver:
-    def __init__(self):
+    def __init__(self, log_fn=None):
         self.active_jobs = []
+        self.log_fn = log_fn if log_fn else print
 
     def archive_url(self, url, options=None):
         if options is None:
@@ -65,9 +66,9 @@ class Archiver:
         timestamp = Path(os.popen("date +%Y%m%d_%H%M%S").read().strip()).name
         job_dir = storage_path / f"{timestamp}_{archive_id}"
         job_dir.mkdir(parents=True, exist_ok=True)
-
-        print(f"⚡ [이터널웹] 엔진 가동: {url}")
-        print(f"📂 저장 경로: {job_dir}")
+ 
+        self.log_fn(f"⚡ [이터널웹] 엔진 가동: {url}")
+        self.log_fn(f"📂 저장 경로: {job_dir}")
         
         results = {"url": url, "timestamp": timestamp, "path": str(job_dir), "formats": []}
 
@@ -92,23 +93,23 @@ class Archiver:
         return results
 
     def run_interactive_archiver(self, url, out_path):
-        print(f"🚀 [Level 2] {url} 기록 시작...")
+        self.log_fn(f"🚀 [Level 2] {url} 기록 시작...")
         # archiveweb.page는 npx로 실행하는 것이 가장 안정적입니다.
         try:
             subprocess.run(["npx", "-y", "archiveweb.page", "record", url, "--output", str(out_path)], check=False)
         except Exception as e:
-            print(f"❌ Webrecorder 오류: {e}")
+            self.log_fn(f"❌ Webrecorder 오류: {e}")
 
     def run_singlefile(self, url, out_path):
-        print(f"📸 [Level 1] {url} 스냅샷 추출 중...")
+        self.log_fn(f"📸 [Level 1] {url} 스냅샷 추출 중...")
         try:
             # single-file-cli 사용
             subprocess.run(["npx", "-y", "single-file-cli", url, str(out_path)], check=False)
         except Exception as e:
-            print(f"❌ SingleFile 오류: {e}")
+            self.log_fn(f"❌ SingleFile 오류: {e}")
 
     def run_archivebox(self, url, options, job_dir):
-        print(f"📦 [Level 3] ArchiveBox 엔진 가동 중...")
+        self.log_fn(f"📦 [Level 3] ArchiveBox 엔진 가동 중...")
         extractors = []
         if "WARC" in options: extractors.append("wget")
         if "PDF" in options: extractors.append("pdf")
@@ -121,7 +122,7 @@ class Archiver:
         try:
             subprocess.run(["archivebox", "add", url, f"--extract={','.join(extractors)}"], cwd=job_dir, check=False)
         except Exception as e:
-            print(f"❌ ArchiveBox 오류: {e}")
+            self.log_fn(f"❌ ArchiveBox 오류: {e}")
 
     def save_to_library(self, data):
         """아카이브 결과를 중앙 인덱스 파일에 기록합니다."""
@@ -132,11 +133,11 @@ class Archiver:
                 with open(index_file, "r", encoding="utf-8") as f:
                     library = json.load(f)
             except json.JSONDecodeError:
-                print("⚠ 라이브러리 파일이 손상되었습니다. 새로 생성합니다.")
+                self.log_fn("⚠ 라이브러리 파일이 손상되었습니다. 새로 생성합니다.")
                 library = []
         
         library.append(data)
         with open(index_file, "w", encoding="utf-8") as f:
             json.dump(library, f, indent=4, ensure_ascii=False)
-        print(f"📚 라이브러리에 저장 완료: {data['url']}")
+        self.log_fn(f"📚 라이브러리에 저장 완료: {data['url']}")
 

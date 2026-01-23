@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem, QFrame, QCheckBox, QGroupBox, QGridLayout
 )
 from PySide6.QtGui import QIcon, QFont, QPalette, QColor, QAction
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QThread, Signal
 import json
 from ..config import get_config, update_config
 
@@ -124,6 +124,28 @@ class DashboardPage(QWidget):
     def connect_nav(self, window):
         self.latest_btn.clicked.connect(lambda: window.navbar.setCurrentRow(2))
 
+class ArchiveWorker(QThread):
+    finished = Signal(dict)
+    error = Signal(str)
+    log = Signal(str)
+
+    def __init__(self, url, options):
+        super().__init__()
+        self.url = url
+        self.options = options
+
+    def run(self):
+        try:
+            if Archiver:
+                # Archiver에게 로그 전달 함수를 넘겨줍니다.
+                archiver = Archiver(log_fn=self.log.emit)
+                results = archiver.archive_url(self.url, self.options)
+                self.finished.emit(results)
+            else:
+                self.error.emit("엔진이 로드되지 않았습니다.")
+        except Exception as e:
+            self.error.emit(str(e))
+
 class LibraryPage(QWidget):
     def __init__(self):
         super().__init__()
@@ -172,10 +194,11 @@ class LibraryPage(QWidget):
         
         self.btn_open_html = QPushButton("HTML 스냅샷 열기 (Level 1)")
         self.btn_open_wacz = QPushButton("대화형 플레이어 열기 (Level 2)")
+        self.btn_open_archivebox = QPushButton("ArchiveBox 인덱스 열기 (Level 3)")
         self.btn_open_folder = QPushButton("파일 위치 열기 (Open Folder)")
         self.btn_delete = QPushButton("아카이브 삭제 (Delete)")
         
-        for btn in [self.btn_open_html, self.btn_open_wacz, self.btn_open_folder]:
+        for btn in [self.btn_open_html, self.btn_open_wacz, self.btn_open_archivebox, self.btn_open_folder]:
             btn.setStyleSheet("padding: 10px; background: #252525; color: #ddd; margin-top: 5px;")
             btn.setCursor(Qt.PointingHandCursor)
             self.detail_layout.addWidget(btn)
@@ -189,6 +212,7 @@ class LibraryPage(QWidget):
         self.detail_layout.addStretch()
         self.detail_layout.addWidget(self.btn_open_html)
         self.detail_layout.addWidget(self.btn_open_wacz)
+        self.detail_layout.addWidget(self.btn_open_archivebox)
         self.detail_layout.addWidget(self.btn_open_folder)
         self.detail_layout.addWidget(self.btn_delete)
         
@@ -200,6 +224,7 @@ class LibraryPage(QWidget):
         # Connect Actions
         self.btn_open_html.clicked.connect(self.open_html)
         self.btn_open_wacz.clicked.connect(self.open_wacz)
+        self.btn_open_archivebox.clicked.connect(self.open_archivebox_index)
         self.btn_open_folder.clicked.connect(self.open_folder)
         self.btn_delete.clicked.connect(self.delete_archive)
         
@@ -226,8 +251,8 @@ class LibraryPage(QWidget):
         
         # 버튼 활성화 여부
         self.btn_open_html.setVisible("HTML" in item['formats'])
-        # WACZ는 보통 외부 뷰어 필요하지만 우선 버튼 노출
         self.btn_open_wacz.setVisible("WACZ" in item['formats'])
+        self.btn_open_archivebox.setVisible("ArchiveBox" in item['formats'])
         self.btn_open_folder.show()
         self.btn_delete.show()
 
@@ -238,12 +263,19 @@ class LibraryPage(QWidget):
             webbrowser.open(f"file://{path.absolute()}")
 
     def open_wacz(self):
-        # WACZ는 ReplayWeb.page 사이트를 통해 열거나 로컬 서버 필요
-        # 우선은 해당 파일을 열 수 있는 웹사이트로 유도
         idx = self.list_widget.currentRow()
-        path = Path(self.archives[idx]['path']) / "interactive.wacz"
+        # path = Path(self.archives[idx]['path']) / "interactive.wacz"
         webbrowser.open("https://replayweb.page/")
-        self.open_folder() # 파일 위치도 같이 열어줌
+
+    def open_archivebox_index(self):
+        idx = self.list_widget.currentRow()
+        # ArchiveBox usually has an index.html in the job directory
+        path = Path(self.archives[idx]['path']) / "index.html"
+        if path.exists():
+            webbrowser.open(f"file://{path.absolute()}")
+        else:
+            # Try subdirectories if any
+            self.open_folder()
 
     def open_folder(self):
         idx = self.list_widget.currentRow()
@@ -367,9 +399,21 @@ class ArchivePage(QWidget):
         input_layout.addLayout(btn_layout)
         
         # Log Output
-        self.log_output = QLabel("시스템 대기 중... URL을 입력하세요.")
-        self.log_output.setStyleSheet("color: #666; margin-top: 15px; font-family: monospace;")
-        self.log_output.setWordWrap(True)
+        from PySide6.QtWidgets import QTextEdit
+        self.log_output = QTextEdit()
+        self.log_output.setReadOnly(True)
+        self.log_output.setPlaceholderText("시스템 대기 중... URL을 입력하세요.")
+        self.log_output.setStyleSheet("""
+            QTextEdit {
+                background-color: #1a1a1a;
+                color: #888;
+                border: 1px solid #333;
+                border-radius: 4px;
+                font-family: 'Consolas', monospace;
+                font-size: 13px;
+                margin-top: 15px;
+            }
+        """)
         
         layout.addLayout(header_layout)
         layout.addWidget(input_container)
@@ -382,8 +426,8 @@ class ArchivePage(QWidget):
     def start_archive(self):
         url = self.url_input.text().strip()
         if not url:
-            self.log_output.setText("⚠ URL을 입력해주세요.")
-            self.log_output.setStyleSheet("color: #ff5555; margin-top: 15px; font-family: monospace;")
+            self.log_output.setPlainText("⚠ URL을 입력해주세요.")
+            self.log_output.setStyleSheet("color: #ff5555; background-color: #1a1a1a; border: 1px solid #333;")
             return
             
         selected_modes = []
@@ -394,25 +438,34 @@ class ArchivePage(QWidget):
         if self.chk_warc.isChecked(): selected_modes.append("WARC")
         if self.chk_media.isChecked(): selected_modes.append("Media")
         
-        mode_str = ", ".join(selected_modes)
-        self.log_output.setText(f"🚀 작업 시작됨: {url}\n[모드]: {mode_str}\n(백그라운드 엔진 가동 중... 잠시만 기다려주세요.)")
-        self.log_output.setStyleSheet("color: #00ff88; margin-top: 15px; font-family: monospace;")
-        
-        # 필수 리프레시를 위해 이벤트 루프 처리
-        QApplication.processEvents()
+        if not selected_modes:
+            self.log_output.setPlainText("⚠ 적어도 하나의 보존 형식을 선택해야 합니다.")
+            return
 
-        if Archiver:
-            try:
-                archiver = Archiver()
-                archiver.archive_url(url, selected_modes)
-                self.log_output.append("\n" + "="*40)
-                self.log_output.append("✅ 모든 아카이빙 작업이 완료되었습니다!")
-                self.log_output.append(f"🔗 {url}")
-                self.log_output.append("="*40)
-            except Exception as e:
-                self.log_output.append(f"\n❌ 엔진 실행 중 심각한 오류가 발생했습니다: {e}")
-        else:
-            self.log_output.append("\n❌ 시스템 오류: 아카이빙 엔진이 로드되지 않았습니다. 종속성을 확인하세요.")
+        mode_str = ", ".join(selected_modes)
+        self.log_output.setPlainText(f"🚀 아카이빙 프로세스 시작...\n🔗 대상: {url}\n🛠 모드: {mode_str}\n" + "-"*50)
+        self.log_output.setStyleSheet("color: #00ff88; background-color: #1a1a1a; border: 1px solid #333;")
+        self.btn_archive.setEnabled(False)
+
+        # Worker Thread 생성 및 실행
+        self.worker = ArchiveWorker(url, selected_modes)
+        self.worker.finished.connect(self.on_archive_finished)
+        self.worker.error.connect(self.on_archive_error)
+        self.worker.log.connect(self.log_output.append)
+        self.worker.start()
+
+    def on_archive_finished(self, results):
+        self.btn_archive.setEnabled(True)
+        self.log_output.append("\n" + "="*45)
+        self.log_output.append("✅ 모든 아카이빙 작업이 완료되었습니다!")
+        self.log_output.append(f"📁 저장 경로: {results['path']}")
+        self.log_output.append("="*45)
+        # 통계 갱신 유도 위해 시그널 대신 직접 부모 접근 (또는 싱글톤 패턴)
+
+    def on_archive_error(self, message):
+        self.btn_archive.setEnabled(True)
+        self.log_output.append(f"\n❌ 심각한 오류 발생: {message}")
+        self.log_output.setStyleSheet("color: #ff5555; background-color: #1a1a1a; border: 1px solid #333;")
 
 class SettingsPage(QWidget):
     def __init__(self):
