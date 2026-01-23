@@ -5,13 +5,21 @@ import pydantic
 
 import django_stubs_ext
 
-django_stubs_ext.monkeypatch()
+# django_stubs_ext.monkeypatch()
 
 
 # monkey patch django timezone to add back utc (it was removed in Django 5.0)
 import datetime
 from django.utils import timezone
 timezone.utc = datetime.timezone.utc
+ 
+# monkey patch uuid to add uuid7 (needed for migrations on Python < 3.14)
+import uuid
+try:
+    from .uuid_compat import uuid7
+    uuid.uuid7 = uuid7
+except ImportError:
+    pass
 
 # monkey patch django-signals-webhooks to change how it shows up in Admin UI
 # from signal_webhooks.apps import DjangoSignalWebhooksConfig

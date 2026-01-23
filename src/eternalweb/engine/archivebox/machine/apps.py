@@ -15,7 +15,7 @@ class MachineConfig(AppConfig):
         import sys
 
         # Skip during makemigrations to avoid premature state machine access
-        if 'makemigrations' not in sys.argv:
+        if not any(cmd in sys.argv for cmd in ('makemigrations', 'migrate', 'init')):
             from archivebox.machine import models  # noqa: F401
 
 

@@ -93,23 +93,15 @@ class Archiver:
         return results
 
     def run_interactive_archiver(self, url, out_path):
-        self.log_fn(f"🚀 [Level 2] webrecorder 가동 중 (npx @webrecorder/archivewebpage-cli)...")
-        try:
-            # Correcting package name and command
-            result = subprocess.run(["npx", "-y", "@webrecorder/archivewebpage-cli", "record", url, "--output", str(out_path)], 
-                                    capture_output=True, text=True, check=False)
-            if result.returncode != 0:
-                self.log_fn(f"❌ Level 2 실패: {result.stderr[-200:]}")
-            else:
-                self.log_fn("✔ Level 2 아카이브 파일 생성 완료")
-        except Exception as e:
-            self.log_fn(f"❌ Webrecorder 예외: {e}")
+        self.log_fn(f"🚀 [Level 2] 고 fidelity 아카이빙 시도 중...")
+        # Webrecorder 공식 CLI 명칭 문제로 인해 현재는 Level 3의 상호작용 기능을 권장합니다.
+        self.log_fn("ℹ Level 2 (Interactive) 엔진 통합 중입니다. Level 1/3를 이용해 주세요.")
 
     def run_singlefile(self, url, out_path):
-        self.log_fn(f"📸 [Level 1] 스냅샷 추출 중 (npx single-file-cli)...")
+        self.log_fn(f"📸 [Level 1] 스냅샷 추출 중 (single-file-cli)...")
         try:
-            # --browser-executable-path 등 추가 옵션 없이 npx로 실행
-            result = subprocess.run(["npx", "-y", "single-file-cli", url, str(out_path)], 
+            # --browser-args 추가하여 샌드박스 이슈 방지
+            result = subprocess.run(["npx", "-y", "single-file-cli", url, str(out_path), "--browser-args", '["--no-sandbox"]'], 
                                     capture_output=True, text=True, check=False)
             if result.returncode != 0:
                 self.log_fn(f"❌ Level 1 실패: {result.stderr[-200:]}")
@@ -119,7 +111,7 @@ class Archiver:
             self.log_fn(f"❌ SingleFile 예외: {e}")
 
     def run_archivebox(self, url, options, job_dir):
-        self.log_fn(f"📦 [Level 3] ArchiveBox 환경 초기화 및 수집 시작...")
+        self.log_fn(f"📦 [Level 3] 내장 ArchiveBox 엔진 가동 중...")
         extractors = []
         if "WARC" in options: extractors.append("wget")
         if "PDF" in options: extractors.append("pdf")
@@ -127,11 +119,25 @@ class Archiver:
         if "Screenshot" in options: extractors.append("screenshot")
         
         try:
-            # 1. Init collection in the job directory
-            subprocess.run(["archivebox", "init", "--non-interactive"], cwd=job_dir, capture_output=True, check=False)
-            # 2. Add URL
-            result = subprocess.run(["archivebox", "add", url, f"--extract={','.join(extractors)}"], 
-                                    cwd=job_dir, capture_output=True, text=True, check=False)
+            # 내장 모듈 호출을 위한 환경 변수 및 경로 설정
+            # archivebox가 top-level package로 인식되도록 PYTHONPATH 설정
+            env = os.environ.copy()
+            project_root = Path(CORE_DIR).parent.parent
+            engine_dir = str(project_root / "src" / "eternalweb" / "engine")
+            env["PYTHONPATH"] = f"{engine_dir}:{env.get('PYTHONPATH', '')}"
+            
+            # 1. 초기화 (옵션 수정: --force 추가)
+            init_res = subprocess.run([sys.executable, "-m", "archivebox", "init", "--force"], 
+                                      cwd=job_dir, env=env, capture_output=True, text=True, check=False)
+            if init_res.returncode != 0:
+                self.log_fn(f"⚠ Level 3 초기화 경고: {init_res.stderr[-100:]}")
+            
+            # 2. 추가 및 추출
+            cmd = [sys.executable, "-m", "archivebox", "add", url]
+            if extractors:
+                cmd.append(f"--extract={','.join(extractors)}")
+            
+            result = subprocess.run(cmd, cwd=job_dir, env=env, capture_output=True, text=True, check=False)
             if result.returncode != 0:
                 self.log_fn(f"❌ Level 3 실패: {result.stderr[-200:]}")
             else:

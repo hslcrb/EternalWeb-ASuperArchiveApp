@@ -16,6 +16,9 @@ from archivebox.misc.util import docstring, enforce_types
 def init(force: bool=False, quick: bool=False, install: bool=False) -> None:
     """Initialize a new ArchiveBox collection in the current directory"""
     
+    from archivebox.config.django import setup_django
+    setup_django()
+    
     from archivebox.config import CONSTANTS, VERSION, DATA_DIR
     from archivebox.config.common import SERVER_CONFIG
     from archivebox.config.collection import write_config_file
@@ -75,8 +78,6 @@ def init(force: bool=False, quick: bool=False, install: bool=False) -> None:
     else:
         print('\n[green][+] Building main SQL index and running initial migrations...[/green]')
     
-    from archivebox.config.django import setup_django
-    setup_django()
     
     for migration_line in apply_migrations(DATA_DIR):
         sys.stdout.write(f'    {migration_line}\n')

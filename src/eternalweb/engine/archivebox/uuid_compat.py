@@ -11,9 +11,12 @@ else:
     try:
         from uuid_extensions import uuid7
     except ImportError:
-        raise ImportError(
-            "uuid_extensions package is required for Python <3.14. "
-            "Install it with: pip install uuid_extensions"
-        )
+        try:
+            from uuid6 import uuid7
+        except ImportError:
+            raise ImportError(
+                "uuid_extensions or uuid6 package is required for Python <3.14. "
+                "Install it with: pip install uuid6"
+            )
 
 __all__ = ['uuid7']

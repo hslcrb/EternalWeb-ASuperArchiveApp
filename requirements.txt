@@ -1,11 +1,10 @@
 PySide6>=6.6.0
-django>=5.0
+django>=5.1
 requests>=2.31.0
 pydantic>=2.5.0
 rich>=13.0.0
 croniter>=2.0.0
 python-dateutil>=2.8.2
-# ArchiveBox critical deps
 python-statemachine
 django-ninja
 django-extensions
@@ -19,8 +18,6 @@ w3lib
 yt-dlp
 gallery-dl
 python-benedict
-django-extensions
-django-signal-webhooks
 django-stubs
 django-stubs-ext
 tzdata
@@ -30,6 +27,15 @@ atomicwrites
 python-magic
 daphne
 channels
-django-ninja
-django-extensions
-django-signal-webhooks
+playwright
+pytest-playwright
+rich-click
+pydantic-settings
+python-crontab
+toml
+py-machineid
+uuid6
+psutil
+pysqlite3-binary
+sqlite-utils
+python-dotenv

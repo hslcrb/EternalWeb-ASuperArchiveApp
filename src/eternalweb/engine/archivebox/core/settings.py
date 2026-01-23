@@ -57,11 +57,10 @@ INSTALLED_APPS = [
     "django_object_actions",  # provides easy Django Admin action buttons on change views       https://github.com/crccheck/django-object-actions
     # Our ArchiveBox-provided apps (use fully qualified names)
     # NOTE: Order matters! Apps with migrations that depend on other apps must come AFTER their dependencies
-    # "archivebox.config",  # ArchiveBox config settings (no models, not a real Django app)
+    "archivebox.core",  # core django model with Snapshot, ArchiveResult, etc. (crawls depends on this)
     "archivebox.machine",  # handles collecting and storing information about the host machine, network interfaces, binaries, etc.
     "archivebox.workers",  # handles starting and managing background workers and processes (orchestrators and actors)
     "archivebox.personas",  # handles Persona and session management
-    "archivebox.core",  # core django model with Snapshot, ArchiveResult, etc. (crawls depends on this)
     "archivebox.crawls",  # handles Crawl and CrawlSchedule models and management (depends on core)
     "archivebox.api",  # Django-Ninja-based Rest API interfaces, config, APIToken model, etc.
     # ArchiveBox plugins (hook-based plugins no longer add Django apps)
@@ -227,16 +226,7 @@ SQLITE_CONNECTION_OPTIONS = {
         # https://docs.djangoproject.com/en/5.1/ref/databases/#setting-pragma-options
         "timeout": 10,
         "check_same_thread": False,
-        "transaction_mode": "IMMEDIATE",
-        "init_command": (
-            "PRAGMA foreign_keys=ON;"
-            "PRAGMA journal_mode = WAL;"
-            "PRAGMA synchronous = NORMAL;"
-            "PRAGMA temp_store = MEMORY;"
-            "PRAGMA mmap_size = 134217728;"
-            "PRAGMA journal_size_limit = 67108864;"
-            "PRAGMA cache_size = 2000;"
-        ),
+        # "transaction_mode": "IMMEDIATE",   # Only supported on Django 5.1+
     },
 }
 

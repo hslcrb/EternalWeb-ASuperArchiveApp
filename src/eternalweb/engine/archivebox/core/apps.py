@@ -16,5 +16,5 @@ class CoreConfig(AppConfig):
 
         # Import models to register state machines with the registry
         # Skip during makemigrations to avoid premature state machine access
-        if 'makemigrations' not in sys.argv:
+        if not any(cmd in sys.argv for cmd in ('makemigrations', 'migrate', 'init')):
             from archivebox.core import models  # noqa: F401
