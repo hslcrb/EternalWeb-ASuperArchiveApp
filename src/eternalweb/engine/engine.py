@@ -93,30 +93,36 @@ class Archiver:
         return results
 
     def run_interactive_archiver(self, url, out_path):
-        self.log_fn(f"🚀 [Level 2] 고 fidelity 아카이빙 시도 중 (WACZ)...")
+        self.log_fn(f"🚀 [Level 2] 고 fidelity 아카이빙 시작 (Playwright + WACZ)...")
         try:
-            # Browsertrix Crawler를 사용하여 WACZ 생성을 시도합니다.
-            self.log_fn("ℹ Browsertrix Crawler 가동 중...")
-            save_dir = out_path.parent / "wacz_tmp"
-            save_dir.mkdir(exist_ok=True)
+            # src/eternalweb/engine/wacz_capture.py 스크립트 위치 확인
+            capture_script = CORE_DIR / "wacz_capture.py"
             
-            # npx를 통한 Browsertrix Crawler 실행
-            # --workers 1 로 리소스 사용 최소화
-            cmd = ["npx", "-y", "@webrecorder/browsertrix-crawler", "crawl", 
-                   "--url", url, "--generateWACZ", "--output", str(save_dir), "--workers", "1"]
+            # Playwright 브라우저가 설치되어 있는지 확인 (자동 설치 시도 생략하고 실행)
+            # .venv/bin/python 을 사용하여 동일한 환경에서 실행
+            self.log_fn("ℹ Playwright 엔진 및 브라우저 세션 가동...")
             
-            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            result = subprocess.run([sys.executable, str(capture_script), url, str(out_path)], 
+                                    capture_output=True, text=True, check=False)
             
-            # 결과물 확인 및 이동
-            wacz_files = list(save_dir.glob("**/*.wacz"))
-            if wacz_files:
-                import shutil
-                shutil.move(str(wacz_files[0]), str(out_path))
-                self.log_fn("✔ Level 2 WACZ 아카이브 완료")
+            if out_path.exists() and out_path.stat().st_size > 1000:
+                self.log_fn("✔ Level 2 WACZ 아카이브 완료 (고화질)")
             else:
-                self.log_fn("ℹ Level 2 (Browsertrix) 가용한 도구로 대체 엔진 가동 중...")
-                # Fallback: Create placeholder if needed, or say it's WIP
-                self.log_fn("✔ Level 2 아카이브 모듈 로드 완료")
+                self.log_fn("ℹ Browsertrix Crawler 대체 엔진 시도 중...")
+                # Fallback to browsertrix-crawler if Playwright fails
+                save_dir = out_path.parent / "wacz_tmp"
+                save_dir.mkdir(exist_ok=True)
+                cmd = ["npx", "-y", "@webrecorder/browsertrix-crawler", "crawl", 
+                       "--url", url, "--generateWACZ", "--output", str(save_dir), "--workers", "1"]
+                
+                alt_result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+                wacz_files = list(save_dir.glob("**/*.wacz"))
+                if wacz_files:
+                    import shutil
+                    shutil.move(str(wacz_files[0]), str(out_path))
+                    self.log_fn("✔ Level 2 WACZ 아카이브 완료 (Browsertrix)")
+                else:
+                    self.log_fn(f"❌ Level 2 실패: {result.stderr[-200:]}")
         except Exception as e:
             self.log_fn(f"❌ Level 2 예외: {e}")
 
