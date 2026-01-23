@@ -12,27 +12,41 @@ EternalWeb은 전설적인 웹 아카이빙 도구인 **ArchiveBox**, **ArchiveW
 > 
 > **🗓️ 최초 클론 및 개발 시작**: 20260120 한국표준시 KST 화요일
 
+---
+
+## 📖 프로젝트 철학 (Philosophy)
+
+EternalWeb은 사라져가는 진실과 기록을 지키는 **디지털 타임캡슐**입니다. 현대의 복잡한 웹(SPA, React 등)을 박제하기 위해 상호보완적인 3단계 엔진을 통합했습니다.
+
+더 자세한 철학과 기술적 배경은 **[사용자 가이드 (KR)](docs/manual/GUIDE_ko.md)** 또는 **[User Guide (EN)](docs/manual/GUIDE.md)**를 참조하세요.
+
+---
+
+## 🛠️ 통합 아키텍처 (Level 1~3 Architecture)
+
+EternalWeb은 사용자의 목적에 따라 세 가지 레벨의 보존 방식을 제공합니다.
+
+1. **Level 1: 신속 보존 (SingleFile)**
+   - 개별 웹 페이지를 단 하나의 HTML 파일로 완벽하게 복제하여 개인 소장에 최적화합니다.
+
+2. **Level 2: 상호작용 보존 (ArchiveWeb.page)**
+   - 자바스크립트 기반 동적 웹사이트(SPA)의 세션 자체를 기록하여 '살아있는' 아카이브를 만듭니다.
+
+3. **Level 3: 심층 아카이브 (ArchiveBox)**
+   - 전체 자산, PDF, 스크린샷 등을 통째로 수집하는 강력한 관제 시스템입니다.
+
+---
+
 ## 🚀 주요 기능 (Key Features)
 
-### 1. 통합 아카이빙 엔진 (Unified Engine)
-EternalWeb은 다음과 같은 강력한 엔진들을 내부 부품(Components)으로 탑재하여 상황에 맞는 최적의 보존 방식을 제공합니다.
+- **현대적인 GUI**: PySide6 기반의 다크 테마 인터페이스로 누구나 쉽게 사용 가능.
+- **표준 포맷 지원**: WACZ, WARC, HAR, PDF, PNG 등 모든 범용 아카이브 포맷 지원.
+- **영구 보존**: 모든 데이터는 로컬에 저장되어 외부 서버의 상태와 무관하게 영구 보전됩니다.
+- **오픈 소스**: AGPL-3.0 라이선스를 따르는 투명한 무료 소프트웨어.
 
-- **ArchiveBox Core**: 강력한 백엔드 아카이빙 관리. HTML, PDF, 스크린샷 등 다양한 포맷 동시 저장.
-- **High-Fidelity Mode (SingleFile)**: 페이지를 단 하나의 HTML 파일로 완벽하게 압축 저장.
-- **Interactive Mode (ArchiveWeb.page)**: 단순 스크린샷이 아닌, 클릭하고 스크롤할 수 있는 '살아있는' 웹페이지를 보존 (WARC).
-
-### 2. 현대적인 GUI (Modern GUI)
-- **PySide6** 기반의 세련된 다크 테마 인터페이스.
-- 터미널 명령어를 몰라도 누구나 쉽게 사용 가능.
-- 실시간 대시보드 및 작업 큐 시각화.
-
-### 3. 영구 보존 (Permanent Preservation)
-- 모든 데이터는 로컬 스토리지에 저장되어 인터넷이 끊겨도 언제든 열람 가능.
-- 표준 포맷(WARC, HTML, PDF) 준수로 높은 호환성 보장.
+---
 
 ## 📂 프로젝트 구조 (Project Structure)
-
-이 프로젝트는 더 이상 단순한 저장소의 집합이 아닙니다. 모든 코드는 `src` 내부로 통합되어 체계적으로 관리됩니다.
 
 ```
 EternalWeb/
@@ -44,7 +58,7 @@ EternalWeb/
 │
 ├── docs/                   # 문서화 (Documentation)
 │   ├── licenses/           # 오픈소스 라이선스 고지
-│   └── manual/             # 사용자 매뉴얼
+│   └── manual/             # 상세 가이드 (GUIDE_ko.md)
 │
 └── src/                    # 소스 코드 (Source Code)
     └── eternalweb/
@@ -56,11 +70,13 @@ EternalWeb/
             └── webpage/    # [Component] ArchiveWeb.page Tools
 ```
 
+---
+
 ## 🛠️ 설치 및 실행 (Installation & Usage)
 
 ### 전제 조건 (Prerequisites)
 - **Python 3.8** 이상
-- **Node.js** (SingleFile 및 일부 컴포넌트 구동용)
+- **Node.js** (외부 엔진 구동용)
 - **Git**
 
 ### 1단계: 프로젝트 클론
@@ -78,12 +94,12 @@ pip install -r requirements.txt
 ```bash
 python run_eternalweb.py
 ```
-앱이 실행되면 대시보드에서 아카이브할 URL을 입력하고 **'아카이빙 시작'** 버튼을 누르세요.
 
-## 🤝 기여 (Contributing)
-EternalWeb은 오픈 소스 프로젝트입니다. 버그 제보, 기능 제안, PR은 언제나 환영합니다.
-모든 기여는 AGPL-3.0 라이선스 하에 배포되어야 합니다.
+---
 
 ## 📜 라이선스 (License)
+
 이 소프트웨어는 **AGPL-3.0** 라이선스 하에 배포됩니다.
 EternalWeb에 포함된 각 컴포넌트(ArchiveBox, SingleFile 등)는 각 원작자의 라이선스를 준수하며, `docs/licenses` 디렉토리에서 확인할 수 있습니다.
+
+**개발자: 이호세 (Rhee Hose)**
