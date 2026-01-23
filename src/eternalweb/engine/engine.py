@@ -5,6 +5,7 @@
 import os
 import sys
 import subprocess
+import json
 from pathlib import Path
 from ..config import get_config
 
@@ -54,49 +55,88 @@ class Archiver:
 
     def archive_url(self, url, options=None):
         if options is None:
-            options = ["WACZ", "SingleFile"] # 기본값
+            options = ["WACZ", "SingleFile"]
+
+        storage_path = Path(config['storage_path'])
+        storage_path.mkdir(parents=True, exist_ok=True)
+        
+        # 아카이브 결과 데이터 (Library 연동용)
+        archive_id = Path(url.replace("://", "_").replace("/", "_")).name[:50]
+        timestamp = Path(os.popen("date +%Y%m%d_%H%M%S").read().strip()).name
+        job_dir = storage_path / f"{timestamp}_{archive_id}"
+        job_dir.mkdir(parents=True, exist_ok=True)
 
         print(f"⚡ [이터널웹] 엔진 가동: {url}")
-        print(f"   선택된 수집 옵션: {options}")
+        print(f"📂 저장 경로: {job_dir}")
         
-        # 1. ArchiveWeb.page (Level 2: 대화형/SPA)
-        if "WACZ" in options:
-            self.run_interactive_archiver(url)
-            
-        # 2. SingleFile (Level 1: 단일 HTML 스냅샷)
+        results = {"url": url, "timestamp": timestamp, "path": str(job_dir), "formats": []}
+
+        # 1. Level 1: SingleFile
         if "SingleFile" in options:
-            self.run_singlefile(url)
-            
-        # 3. ArchiveBox (Level 3: 심층 아카이빙 및 에셋 추출)
+            out_file = job_dir / "snapshot.html"
+            self.run_singlefile(url, out_file)
+            results["formats"].append("HTML")
+
+        # 2. Level 2: ArchiveWeb.page (WACZ)
+        if "WACZ" in options:
+            out_wacz = job_dir / "interactive.wacz"
+            self.run_interactive_archiver(url, out_wacz)
+            results["formats"].append("WACZ")
+
+        # 3. Level 3: ArchiveBox
         if any(opt in options for opt in ["WARC", "Media", "PDF", "Screenshot"]):
-            extractors = []
-            if "WARC" in options: extractors.append("wget")
-            if "PDF" in options: extractors.append("pdf")
-            if "Media" in options: extractors.append("media")
-            if "Screenshot" in options: extractors.append("screenshot")
-            
-            self.run_archivebox(url, extractors)
+            self.run_archivebox(url, options, job_dir)
+            results["formats"].append("ArchiveBox")
 
-    def run_interactive_archiver(self, url):
-        """Webrecorder 엔진을 사용하여 상호작용 가능한 WACZ 파일 생성"""
-        print(f"🚀 [Level 2] {url}의 대화형 기록 시작...")
-        # 실제 명령: npx archiveweb.page record [url] --output [path]
-        cmd = ["npx", "archiveweb.page", "record", url]
-        # 실시간 로그는 GUI 콘솔로 전달될 예정
-        # subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self.save_to_library(results)
+        return results
 
-    def run_singlefile(self, url):
-        """SingleFile 엔진을 사용하여 고해상도 단일 HTML 저장"""
-        print(f"📸 [Level 1] {url}을 단일 HTML로 압축 암호화 중...")
-        cli_path = COMPONENTS_DIR / "singlefile" / "cli.ts"
-        # 실제 명령: ts-node [cli_path] [url] [output]
-        cmd = ["npx", "ts-node", str(cli_path), url]
-        # subprocess.Popen(cmd)
+    def run_interactive_archiver(self, url, out_path):
+        print(f"🚀 [Level 2] {url} 기록 시작...")
+        # archiveweb.page는 npx로 실행하는 것이 가장 안정적입니다.
+        try:
+            subprocess.run(["npx", "-y", "archiveweb.page", "record", url, "--output", str(out_path)], check=False)
+        except Exception as e:
+            print(f"❌ Webrecorder 오류: {e}")
 
-    def run_archivebox(self, url, extractors):
-        """ArchiveBox 엔진을 사용하여 표준 WARC 및 미디어 자산 아카이빙"""
-        print(f"📦 [Level 3] {url}에 대한 심층 수집 수행 중 (추출기: {extractors})...")
-        # ArchiveBox CLI를 호출하여 데이터베이스에 추가 및 아카이빙
-        # cmd = ["archivebox", "add", url, f"--extract={','.join(extractors)}"]
-        # subprocess.Popen(cmd)
+    def run_singlefile(self, url, out_path):
+        print(f"📸 [Level 1] {url} 스냅샷 추출 중...")
+        try:
+            # single-file-cli 사용
+            subprocess.run(["npx", "-y", "single-file-cli", url, str(out_path)], check=False)
+        except Exception as e:
+            print(f"❌ SingleFile 오류: {e}")
+
+    def run_archivebox(self, url, options, job_dir):
+        print(f"📦 [Level 3] ArchiveBox 엔진 가동 중...")
+        extractors = []
+        if "WARC" in options: extractors.append("wget")
+        if "PDF" in options: extractors.append("pdf")
+        if "Media" in options: extractors.append("media")
+        if "Screenshot" in options: extractors.append("screenshot")
+        
+        # ArchiveBox CLI 또는 통합 모듈 호출
+        # 현재는 독립 실행 환경 구축을 위해 subprocess 권장
+        os.environ["OUTPUT_DIR"] = str(job_dir)
+        try:
+            subprocess.run(["archivebox", "add", url, f"--extract={','.join(extractors)}"], cwd=job_dir, check=False)
+        except Exception as e:
+            print(f"❌ ArchiveBox 오류: {e}")
+
+    def save_to_library(self, data):
+        """아카이브 결과를 중앙 인덱스 파일에 기록합니다."""
+        index_file = Path(config['storage_path']) / "index.json"
+        library = []
+        if index_file.exists() and index_file.stat().st_size > 0:
+            try:
+                with open(index_file, "r", encoding="utf-8") as f:
+                    library = json.load(f)
+            except json.JSONDecodeError:
+                print("⚠ 라이브러리 파일이 손상되었습니다. 새로 생성합니다.")
+                library = []
+        
+        library.append(data)
+        with open(index_file, "w", encoding="utf-8") as f:
+            json.dump(library, f, indent=4, ensure_ascii=False)
+        print(f"📚 라이브러리에 저장 완료: {data['url']}")
 

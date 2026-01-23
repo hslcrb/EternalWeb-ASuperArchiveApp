@@ -40,6 +40,7 @@ EternalWeb은 사용자의 목적에 따라 세 가지 레벨의 보존 방식�
 ## 🚀 주요 기능 (Key Features)
 
 - **현대적인 GUI**: PySide6 기반의 다크 테마 인터페이스로 누구나 쉽게 사용 가능.
+- **강력한 CLI**: 서버 환경이나 자동화를 위한 명령줄 인터페이스 제공.
 - **표준 포맷 지원**: WACZ, WARC, HAR, PDF, PNG 등 모든 범용 아카이브 포맷 지원.
 - **영구 보존**: 모든 데이터는 로컬에 저장되어 외부 서버의 상태와 무관하게 영구 보전됩니다.
 - **오픈 소스**: AGPL-3.0 라이선스를 따르는 투명한 무료 소프트웨어.
@@ -51,7 +52,8 @@ EternalWeb은 사용자의 목적에 따라 세 가지 레벨의 보존 방식�
 ```
 EternalWeb/
 │
-├── run_eternalweb.py       # 애플리케이션 실행 파일 (Entry Point)
+├── run_eternalweb.py       # GUI 실행 파일
+├── eternalweb-cli.py       # CLI 실행 파일
 ├── requirements.txt        # 필수 라이브러리 목록
 ├── README.md               # 프로젝트 설명 (본 파일)
 ├── LICENSE                 # AGPL-3.0 라이선스
@@ -62,12 +64,10 @@ EternalWeb/
 │
 └── src/                    # 소스 코드 (Source Code)
     └── eternalweb/
+        ├── cli.py          # CLI 구현부
         ├── gui/            # GUI 애플리케이션 (PySide6)
         ├── engine/         # 통합 아카이빙 엔진 로직
-        │   └── archivebox/ # [Core] ArchiveBox 백엔드 로직
-        └── components/     # 외부 엔진 구성요소
-            ├── singlefile/ # [Component] SingleFile CLI/Lib
-            └── webpage/    # [Component] ArchiveWeb.page Tools
+        └── config.py       # 전역 설정 매니저
 ```
 
 ---
@@ -77,23 +77,25 @@ EternalWeb/
 ### 전제 조건 (Prerequisites)
 - **Python 3.8** 이상
 - **Node.js** (외부 엔진 구동용)
-- **Git**
 
-### 1단계: 프로젝트 클론
+### 1단계: 프로젝트 클론 및 설치
 ```bash
 git clone https://github.com/hslcrb/EternalWeb-ASuperArchiveApp.git
 cd EternalWeb-ASuperArchiveApp
-```
-
-### 2단계: 의존성 설치
-```bash
 pip install -r requirements.txt
 ```
 
-### 3단계: 실행
+### 2단계: 실행 (GUI)
 ```bash
 python run_eternalweb.py
 ```
+
+### 3단계: 실행 (CLI)
+```bash
+python eternalweb-cli.py https://example.com --level 2
+```
+- `--level`: 1 (신속), 2 (상호작용), 3 (심층)
+- `--options`: 특정 포맷 지정 (WACZ, PDF, Screenshot, Media 등)
 
 ---
 

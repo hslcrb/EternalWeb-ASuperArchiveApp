@@ -56,8 +56,11 @@ class ModernNavBar(QListWidget):
 class DashboardPage(QWidget):
     def __init__(self):
         super().__init__()
+        self.config = get_config()
+        self.setup_ui()
+
+    def setup_ui(self):
         layout = QVBoxLayout()
-        
         title = QLabel("EternalWeb 대시보드")
         title.setStyleSheet("font-size: 28px; font-weight: bold; color: #fff;")
         
@@ -65,7 +68,7 @@ class DashboardPage(QWidget):
         stat_frame.setStyleSheet("background-color: #252525; border-radius: 8px; padding: 20px;")
         stat_layout = QHBoxLayout(stat_frame)
         
-        self.stat_total = QLabel("총 아카이브: 0")
+        self.stat_total = QLabel("총 아카이브: -")
         self.stat_engine = QLabel("엔진 상태: 준비됨")
         self.stat_total.setStyleSheet("font-size: 18px; color: #00bbff;")
         self.stat_engine.setStyleSheet("font-size: 18px; color: #ffcc00;")
@@ -82,6 +85,52 @@ class DashboardPage(QWidget):
         layout.addWidget(info)
         layout.addStretch()
         self.setLayout(layout)
+        self.refresh_stats()
+
+    def refresh_stats(self):
+        index_file = Path(self.config['storage_path']) / "index.json"
+        count = 0
+        if index_file.exists():
+            with open(index_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                count = len(data)
+        self.stat_total.setText(f"총 아카이브: {count}")
+
+class LibraryPage(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.config = get_config()
+        layout = QVBoxLayout()
+        
+        title = QLabel("아카이브 라이브러리 (Library)")
+        title.setStyleSheet("font-size: 24px; color: #fff; margin-bottom: 5px;")
+        layout.addWidget(title)
+        
+        self.list_widget = QListWidget()
+        self.list_widget.setStyleSheet("""
+            QListWidget { background-color: #1a1a1a; border: 1px solid #333; border-radius: 4px; color: #eee; }
+            QListWidget::item { padding: 10px; border-bottom: 1px solid #222; }
+            QListWidget::item:selected { background-color: #333; color: #00bbff; }
+        """)
+        layout.addWidget(self.list_widget)
+        
+        self.btn_refresh = QPushButton("새로고침 (Refresh)")
+        self.btn_refresh.clicked.connect(self.load_library)
+        layout.addWidget(self.btn_refresh)
+        
+        self.setLayout(layout)
+        self.load_library()
+
+    def load_library(self):
+        self.list_widget.clear()
+        index_file = Path(self.config['storage_path']) / "index.json"
+        if index_file.exists():
+            with open(index_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                for item in reversed(data):
+                    display_text = f"[{item['timestamp']}] {item['url']}\n형식: {', '.join(item['formats'])}"
+                    list_item = QListWidgetItem(display_text)
+                    self.list_widget.addItem(list_item)
 
 class ArchivePage(QWidget):
     def __init__(self):
@@ -192,7 +241,7 @@ class ArchivePage(QWidget):
         self.btn_archive.clicked.connect(self.start_archive)
 
     def start_archive(self):
-        url = self.url_input.text()
+        url = self.url_input.text().strip()
         if not url:
             self.log_output.setText("⚠ URL을 입력해주세요.")
             self.log_output.setStyleSheet("color: #ff5555; margin-top: 15px; font-family: monospace;")
@@ -207,8 +256,22 @@ class ArchivePage(QWidget):
         if self.chk_media.isChecked(): selected_modes.append("Media")
         
         mode_str = ", ".join(selected_modes)
-        self.log_output.setText(f"🚀 작업 시작됨: {url}\n[모드]: {mode_str}\n(백그라운드 엔진이 외부 리소스 및 동적 콘텐츠를 수집합니다...)")
-        self.log_output.setStyleSheet("color: #00cc00; margin-top: 15px; font-family: monospace;")
+        self.log_output.setText(f"🚀 작업 시작됨: {url}\n[모드]: {mode_str}\n(백그라운드 엔진 가동 중... 잠시만 기다려주세요.)")
+        self.log_output.setStyleSheet("color: #00ff88; margin-top: 15px; font-family: monospace;")
+        
+        # 필수 리프레시를 위해 이벤트 루프 처리
+        QApplication.processEvents()
+
+        # 실제 엔진 호출
+        if Archiver:
+            try:
+                archiver = Archiver()
+                archiver.archive_url(url, selected_modes)
+                self.log_output.append("\n✅ 아카이빙이 성공적으로 완료되었습니다!")
+            except Exception as e:
+                self.log_output.append(f"\n❌ 오류 발생: {e}")
+        else:
+            self.log_output.append("\n❌ 엔진이 로드되지 않았습니다.")
 
 class SettingsPage(QWidget):
     def __init__(self):
@@ -293,10 +356,15 @@ class EternalWindow(QMainWindow):
         self.pages = QStackedWidget()
         self.pages.setStyleSheet("background-color: #121212;")
         
-        self.pages.addWidget(DashboardPage())
-        self.pages.addWidget(ArchivePage())
-        self.pages.addWidget(QLabel("Library (준비 중)", alignment=Qt.AlignCenter))
-        self.pages.addWidget(SettingsPage())
+        self.dashboard = DashboardPage()
+        self.archive_page = ArchivePage()
+        self.library = LibraryPage()
+        self.settings = SettingsPage()
+
+        self.pages.addWidget(self.dashboard)
+        self.pages.addWidget(self.archive_page)
+        self.pages.addWidget(self.library)
+        self.pages.addWidget(self.settings)
         
         main_layout.addWidget(self.navbar)
         main_layout.addWidget(self.pages)
@@ -305,6 +373,10 @@ class EternalWindow(QMainWindow):
 
     def change_page(self, index):
         self.pages.setCurrentIndex(index)
+        if index == 0:
+            self.dashboard.refresh_stats()
+        elif index == 2:
+            self.library.load_library()
 
 def set_dark_theme(app):
     app.setStyle("Fusion")
