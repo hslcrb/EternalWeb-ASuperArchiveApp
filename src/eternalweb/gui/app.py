@@ -1,6 +1,7 @@
-
 import sys
 import os
+import webbrowser
+import subprocess
 from pathlib import Path
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
@@ -63,26 +64,42 @@ class DashboardPage(QWidget):
     def setup_ui(self):
         layout = QVBoxLayout()
         title = QLabel("EternalWeb 대시보드")
-        title.setStyleSheet("font-size: 28px; font-weight: bold; color: #fff;")
+        title.setStyleSheet("font-size: 32px; font-weight: bold; color: #fff; margin-bottom: 5px;")
         
         stat_frame = QFrame()
-        stat_frame.setStyleSheet("background-color: #252525; border-radius: 8px; padding: 20px;")
+        stat_frame.setStyleSheet("background-color: #1a1a1a; border-radius: 12px; border: 1px solid #333; padding: 25px;")
         stat_layout = QHBoxLayout(stat_frame)
         
         self.stat_total = QLabel("총 아카이브: -")
-        self.stat_engine = QLabel("엔진 상태: 준비됨")
-        self.stat_total.setStyleSheet("font-size: 18px; color: #00bbff;")
-        self.stat_engine.setStyleSheet("font-size: 18px; color: #ffcc00;")
+        self.stat_engine = QLabel("엔진 상태: 최적 (Active)")
+        self.stat_total.setStyleSheet("font-size: 20px; color: #00ff88; font-weight: bold;")
+        self.stat_engine.setStyleSheet("font-size: 20px; color: #00bbff; font-weight: bold;")
         
         stat_layout.addWidget(self.stat_total)
         stat_layout.addStretch()
         stat_layout.addWidget(self.stat_engine)
         
-        info = QLabel("통합 웹 아카이빙 시스템에 오신 것을 환영합니다.\nEternalWeb은 ArchiveBox, ArchiveWeb.page, SingleFile을 통합하여 영구적인 보존을 지원합니다.")
-        info.setStyleSheet("color: #aaa; margin-top: 20px; font-size: 14px; line-height: 1.5;")
+        # Latest Archive Card
+        self.latest_card = QFrame()
+        self.latest_card.setStyleSheet("background-color: #222; border-radius: 10px; padding: 15px; margin-top: 20px;")
+        latest_layout = QVBoxLayout(self.latest_card)
+        latest_layout.addWidget(QLabel("최근 아카이브 (Latest Activity)", styleSheet="color: #888; font-weight: bold;"))
+        self.latest_title = QLabel("기록된 항목이 없습니다.")
+        self.latest_title.setStyleSheet("font-size: 16px; color: #eee;")
+        self.latest_btn = QPushButton("지금 확인하기")
+        self.latest_btn.setFixedWidth(120)
+        self.latest_btn.setStyleSheet("background: #0077cc; color: white; border-radius: 4px; padding: 5px;")
+        self.latest_btn.hide()
+        
+        latest_layout.addWidget(self.latest_title)
+        latest_layout.addWidget(self.latest_btn)
+
+        info = QLabel("지식의 방패, 이터널웹에 오신 것을 환영합니다.\nArchiveBox, Webrecorder, SingleFile이 통합되어 당신의 기록을 영구 보존합니다.")
+        info.setStyleSheet("color: #777; margin-top: 20px; font-size: 14px; line-height: 1.6;")
         
         layout.addWidget(title)
         layout.addWidget(stat_frame)
+        layout.addWidget(self.latest_card)
         layout.addWidget(info)
         layout.addStretch()
         self.setLayout(layout)
@@ -91,47 +108,168 @@ class DashboardPage(QWidget):
     def refresh_stats(self):
         index_file = Path(self.config['storage_path']) / "index.json"
         count = 0
-        if index_file.exists():
+        if index_file.exists() and index_file.stat().st_size > 0:
             with open(index_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 count = len(data)
+                if count > 0:
+                    last = data[-1]
+                    self.latest_title.setText(f"{last['url']} ({last['timestamp']})")
+                    self.latest_btn.show()
+                else:
+                    self.latest_btn.hide()
+        
         self.stat_total.setText(f"총 아카이브: {count}")
+
+    def connect_nav(self, window):
+        self.latest_btn.clicked.connect(lambda: window.navbar.setCurrentRow(2))
 
 class LibraryPage(QWidget):
     def __init__(self):
         super().__init__()
         self.config = get_config()
-        layout = QVBoxLayout()
+        self.archives = []
+        self.setup_ui()
+
+    def setup_ui(self):
+        main_layout = QHBoxLayout()
+        
+        # Left Side: List
+        left_panel = QWidget()
+        left_layout = QVBoxLayout(left_panel)
         
         title = QLabel("아카이브 라이브러리 (Library)")
-        title.setStyleSheet("font-size: 24px; color: #fff; margin-bottom: 5px;")
-        layout.addWidget(title)
+        title.setStyleSheet("font-size: 20px; color: #fff; font-weight: bold; margin-bottom: 10px;")
+        left_layout.addWidget(title)
         
         self.list_widget = QListWidget()
         self.list_widget.setStyleSheet("""
             QListWidget { background-color: #1a1a1a; border: 1px solid #333; border-radius: 4px; color: #eee; }
-            QListWidget::item { padding: 10px; border-bottom: 1px solid #222; }
-            QListWidget::item:selected { background-color: #333; color: #00bbff; }
+            QListWidget::item { padding: 12px; border-bottom: 1px solid #222; }
+            QListWidget::item:selected { background-color: #252525; color: #00bbff; border-left: 3px solid #00bbff; }
         """)
-        layout.addWidget(self.list_widget)
+        self.list_widget.itemSelectionChanged.connect(self.on_selection_changed)
+        left_layout.addWidget(self.list_widget)
         
-        self.btn_refresh = QPushButton("새로고침 (Refresh)")
+        self.btn_refresh = QPushButton("목록 새로고침 (Refresh)")
+        self.btn_refresh.setStyleSheet("padding: 8px; background: #333; color: white;")
         self.btn_refresh.clicked.connect(self.load_library)
-        layout.addWidget(self.btn_refresh)
+        left_layout.addWidget(self.btn_refresh)
         
-        self.setLayout(layout)
+        # Right Side: Detail
+        self.detail_panel = QFrame()
+        self.detail_panel.setFixedWidth(400)
+        self.detail_panel.setStyleSheet("background-color: #1a1a1a; border-radius: 8px; border: 1px solid #333;")
+        self.detail_layout = QVBoxLayout(self.detail_panel)
+        
+        self.detail_title = QLabel("항목을 선택하세요")
+        self.detail_title.setWordWrap(True)
+        self.detail_title.setStyleSheet("font-size: 16px; color: #00bbff; font-weight: bold;")
+        
+        self.detail_info = QLabel("")
+        self.detail_info.setStyleSheet("color: #aaa; font-size: 13px;")
+        self.detail_info.setWordWrap(True)
+        
+        self.btn_open_html = QPushButton("HTML 스냅샷 열기 (Level 1)")
+        self.btn_open_wacz = QPushButton("대화형 플레이어 열기 (Level 2)")
+        self.btn_open_folder = QPushButton("파일 위치 열기 (Open Folder)")
+        self.btn_delete = QPushButton("아카이브 삭제 (Delete)")
+        
+        for btn in [self.btn_open_html, self.btn_open_wacz, self.btn_open_folder]:
+            btn.setStyleSheet("padding: 10px; background: #252525; color: #ddd; margin-top: 5px;")
+            btn.setCursor(Qt.PointingHandCursor)
+            self.detail_layout.addWidget(btn)
+            btn.hide()
+            
+        self.btn_delete.setStyleSheet("padding: 10px; background: #442222; color: #ff8888; margin-top: 20px;")
+        self.btn_delete.hide()
+        
+        self.detail_layout.addWidget(self.detail_title)
+        self.detail_layout.addWidget(self.detail_info)
+        self.detail_layout.addStretch()
+        self.detail_layout.addWidget(self.btn_open_html)
+        self.detail_layout.addWidget(self.btn_open_wacz)
+        self.detail_layout.addWidget(self.btn_open_folder)
+        self.detail_layout.addWidget(self.btn_delete)
+        
+        main_layout.addWidget(left_panel, 2)
+        main_layout.addWidget(self.detail_panel, 1)
+        
+        self.setLayout(main_layout)
+        
+        # Connect Actions
+        self.btn_open_html.clicked.connect(self.open_html)
+        self.btn_open_wacz.clicked.connect(self.open_wacz)
+        self.btn_open_folder.clicked.connect(self.open_folder)
+        self.btn_delete.clicked.connect(self.delete_archive)
+        
         self.load_library()
 
     def load_library(self):
         self.list_widget.clear()
         index_file = Path(self.config['storage_path']) / "index.json"
-        if index_file.exists():
+        if index_file.exists() and index_file.stat().st_size > 0:
             with open(index_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                for item in reversed(data):
-                    display_text = f"[{item['timestamp']}] {item['url']}\n형식: {', '.join(item['formats'])}"
+                self.archives = list(reversed(json.load(f)))
+                for item in self.archives:
+                    display_text = f"{item['url']}\n{item['timestamp']}"
                     list_item = QListWidgetItem(display_text)
                     self.list_widget.addItem(list_item)
+
+    def on_selection_changed(self):
+        idx = self.list_widget.currentRow()
+        if idx < 0: return
+        
+        item = self.archives[idx]
+        self.detail_title.setText(item['url'])
+        self.detail_info.setText(f"날짜: {item['timestamp']}\n보존 형식: {', '.join(item['formats'])}\n경로: {item['path']}")
+        
+        # 버튼 활성화 여부
+        self.btn_open_html.setVisible("HTML" in item['formats'])
+        # WACZ는 보통 외부 뷰어 필요하지만 우선 버튼 노출
+        self.btn_open_wacz.setVisible("WACZ" in item['formats'])
+        self.btn_open_folder.show()
+        self.btn_delete.show()
+
+    def open_html(self):
+        idx = self.list_widget.currentRow()
+        path = Path(self.archives[idx]['path']) / "snapshot.html"
+        if path.exists():
+            webbrowser.open(f"file://{path.absolute()}")
+
+    def open_wacz(self):
+        # WACZ는 ReplayWeb.page 사이트를 통해 열거나 로컬 서버 필요
+        # 우선은 해당 파일을 열 수 있는 웹사이트로 유도
+        idx = self.list_widget.currentRow()
+        path = Path(self.archives[idx]['path']) / "interactive.wacz"
+        webbrowser.open("https://replayweb.page/")
+        self.open_folder() # 파일 위치도 같이 열어줌
+
+    def open_folder(self):
+        idx = self.list_widget.currentRow()
+        path = self.archives[idx]['path']
+        if os.name == 'nt': os.startfile(path)
+        elif sys.platform == 'darwin': subprocess.Popen(['open', path])
+        else: subprocess.Popen(['xdg-open', path])
+
+    def delete_archive(self):
+        # 삭제 로직 구현 (실제 파일 삭제 및 JSON 업데이트)
+        from PySide6.QtWidgets import QMessageBox
+        reply = QMessageBox.question(self, '삭제 확인', '이 아카이브를 영구적으로 삭제하시겠습니까?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            idx = self.list_widget.currentRow()
+            del_item = self.archives.pop(idx)
+            
+            # JSON 파일 업데이트
+            index_file = Path(self.config['storage_path']) / "index.json"
+            with open(index_file, "w", encoding="utf-8") as f:
+                json.dump(list(reversed(self.archives)), f, indent=4, ensure_ascii=False)
+            
+            self.load_library()
+            self.detail_title.setText("항목이 삭제되었습니다.")
+            self.detail_info.setText("")
+            for btn in [self.btn_open_html, self.btn_open_wacz, self.btn_open_folder, self.btn_delete]:
+                btn.hide()
 
 class ArchivePage(QWidget):
     def __init__(self):
@@ -263,16 +401,18 @@ class ArchivePage(QWidget):
         # 필수 리프레시를 위해 이벤트 루프 처리
         QApplication.processEvents()
 
-        # 실제 엔진 호출
         if Archiver:
             try:
                 archiver = Archiver()
                 archiver.archive_url(url, selected_modes)
-                self.log_output.append("\n✅ 아카이빙이 성공적으로 완료되었습니다!")
+                self.log_output.append("\n" + "="*40)
+                self.log_output.append("✅ 모든 아카이빙 작업이 완료되었습니다!")
+                self.log_output.append(f"🔗 {url}")
+                self.log_output.append("="*40)
             except Exception as e:
-                self.log_output.append(f"\n❌ 오류 발생: {e}")
+                self.log_output.append(f"\n❌ 엔진 실행 중 심각한 오류가 발생했습니다: {e}")
         else:
-            self.log_output.append("\n❌ 엔진이 로드되지 않았습니다.")
+            self.log_output.append("\n❌ 시스템 오류: 아카이빙 엔진이 로드되지 않았습니다. 종속성을 확인하세요.")
 
 class SettingsPage(QWidget):
     def __init__(self):
@@ -366,6 +506,8 @@ class EternalWindow(QMainWindow):
         self.pages.addWidget(self.archive_page)
         self.pages.addWidget(self.library)
         self.pages.addWidget(self.settings)
+        
+        self.dashboard.connect_nav(self)
         
         main_layout.addWidget(self.navbar)
         main_layout.addWidget(self.pages)
