@@ -1,9 +1,15 @@
 
 import sys
 import os
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QStackedWidget, QListWidget, QListWidgetItem, QFrame
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+    QLabel, QPushButton, QLineEdit, QStackedWidget, QListWidget, 
+    QListWidgetItem, QFrame, QCheckBox, QGroupBox, QGridLayout
+)
 from PySide6.QtGui import QIcon, QFont, QPalette, QColor, QAction
 from PySide6.QtCore import Qt, QSize
+import json
+from ..config import get_config, update_config
 
 # Adjusted Imports for new structure
 try:
@@ -107,8 +113,6 @@ class ArchivePage(QWidget):
         opts_lbl = QLabel("보존 강도 및 형식 (EternalWeb Levels)")
         opts_lbl.setStyleSheet("color: #00bbff; font-weight: bold; margin-top: 15px; margin-bottom: 5px;")
         
-        from PySide6.QtWidgets import QCheckBox, QGroupBox, QGridLayout, QVBoxLayout, QLabel
-        
         opts_container = QFrame()
         opts_layout = QHBoxLayout(opts_container)
         opts_layout.setContentsMargins(0, 0, 0, 0)
@@ -206,6 +210,68 @@ class ArchivePage(QWidget):
         self.log_output.setText(f"🚀 작업 시작됨: {url}\n[모드]: {mode_str}\n(백그라운드 엔진이 외부 리소스 및 동적 콘텐츠를 수집합니다...)")
         self.log_output.setStyleSheet("color: #00cc00; margin-top: 15px; font-family: monospace;")
 
+class SettingsPage(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.config = get_config()
+        layout = QVBoxLayout()
+        
+        title = QLabel("통합 설정 (Unified Settings)")
+        title.setStyleSheet("font-size: 24px; color: #fff; margin-bottom: 5px;")
+        desc = QLabel("EternalWeb의 핵심 동작 설정을 JSON 형태로 직접 관리합니다.")
+        desc.setStyleSheet("color: #aaa; margin-bottom: 20px;")
+        layout.addWidget(title)
+        layout.addWidget(desc)
+        
+        from PySide6.QtWidgets import QTextEdit
+        self.json_editor = QTextEdit()
+        self.json_editor.setPlainText(json.dumps(self.config, indent=4, ensure_ascii=False))
+        self.json_editor.setStyleSheet("""
+            QTextEdit {
+                background-color: #1a1a1a;
+                color: #00ff88;
+                font-family: 'Consolas', 'Monaco', monospace;
+                border: 1px solid #333;
+                border-radius: 4px;
+                font-size: 13px;
+                padding: 10px;
+            }
+        """)
+        layout.addWidget(self.json_editor)
+        
+        btn_layout = QHBoxLayout()
+        self.btn_save = QPushButton("설정 저장 및 적용 (Save)")
+        self.btn_save.setStyleSheet("""
+            QPushButton {
+                background-color: #333;
+                color: white;
+                padding: 12px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #444; }
+        """)
+        self.btn_save.clicked.connect(self.save_settings)
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.btn_save)
+        layout.addLayout(btn_layout)
+        
+        self.status_lbl = QLabel("")
+        layout.addWidget(self.status_lbl)
+        
+        self.setLayout(layout)
+
+    def save_settings(self):
+        try:
+            new_text = self.json_editor.toPlainText()
+            new_config = json.loads(new_text)
+            update_config(new_config)
+            self.status_lbl.setText("✅ 설정이 성공적으로 저장되었습니다.")
+            self.status_lbl.setStyleSheet("color: #00ff88;")
+        except Exception as e:
+            self.status_lbl.setText(f"❌ 오류: 유효하지 않은 JSON 형식입니다. ({e})")
+            self.status_lbl.setStyleSheet("color: #ff5555;")
+
 class EternalWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -230,7 +296,7 @@ class EternalWindow(QMainWindow):
         self.pages.addWidget(DashboardPage())
         self.pages.addWidget(ArchivePage())
         self.pages.addWidget(QLabel("Library (준비 중)", alignment=Qt.AlignCenter))
-        self.pages.addWidget(QLabel("Settings (준비 중)", alignment=Qt.AlignCenter))
+        self.pages.addWidget(SettingsPage())
         
         main_layout.addWidget(self.navbar)
         main_layout.addWidget(self.pages)

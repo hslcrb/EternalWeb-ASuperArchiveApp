@@ -6,6 +6,10 @@ import os
 import sys
 import subprocess
 from pathlib import Path
+from ..config import get_config
+
+# 통합 설정 로드
+config = get_config()
 
 # Paths adjustment for new structure
 # This file is in src/eternalweb/engine/engine.py
@@ -19,8 +23,8 @@ ARCHIVEBOX_DIR = CORE_DIR / "archivebox" # Moved here earlier
 sys.path.append(str(CORE_DIR))
 
 def init_engine():
-    """Initialize the archiving engine and dependencies."""
-    print(f"EternalWeb 엔진 코어 초기화 중...")
+    """설정을 기반으로 엔진을 초기화합니다."""
+    print(f"EternalWeb 엔진 코어 초기화 중... (저장경로: {config['storage_path']})")
     print(f"구성 요소 경로: {COMPONENTS_DIR}")
     
     # Check Components
