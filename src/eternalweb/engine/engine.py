@@ -93,36 +93,50 @@ class Archiver:
         return results
 
     def run_interactive_archiver(self, url, out_path):
-        self.log_fn(f"🚀 [Level 2] {url} 기록 시작...")
-        # archiveweb.page는 npx로 실행하는 것이 가장 안정적입니다.
+        self.log_fn(f"🚀 [Level 2] webrecorder 가동 중 (npx archiveweb.page)...")
         try:
-            subprocess.run(["npx", "-y", "archiveweb.page", "record", url, "--output", str(out_path)], check=False)
+            result = subprocess.run(["npx", "-y", "archiveweb.page", "record", url, "--output", str(out_path)], 
+                                    capture_output=True, text=True, check=False)
+            if result.returncode != 0:
+                self.log_fn(f"❌ Level 2 실패: {result.stderr[-200:]}")
+            else:
+                self.log_fn("✔ Level 2 아카이브 파일 생성 완료")
         except Exception as e:
-            self.log_fn(f"❌ Webrecorder 오류: {e}")
+            self.log_fn(f"❌ Webrecorder 예외: {e}")
 
     def run_singlefile(self, url, out_path):
-        self.log_fn(f"📸 [Level 1] {url} 스냅샷 추출 중...")
+        self.log_fn(f"📸 [Level 1] 스냅샷 추출 중 (npx single-file-cli)...")
         try:
-            # single-file-cli 사용
-            subprocess.run(["npx", "-y", "single-file-cli", url, str(out_path)], check=False)
+            # --browser-executable-path 등 추가 옵션 없이 npx로 실행
+            result = subprocess.run(["npx", "-y", "single-file-cli", url, str(out_path)], 
+                                    capture_output=True, text=True, check=False)
+            if result.returncode != 0:
+                self.log_fn(f"❌ Level 1 실패: {result.stderr[-200:]}")
+            else:
+                self.log_fn("✔ Level 1 HTML 스냅샷 저장 완료")
         except Exception as e:
-            self.log_fn(f"❌ SingleFile 오류: {e}")
+            self.log_fn(f"❌ SingleFile 예외: {e}")
 
     def run_archivebox(self, url, options, job_dir):
-        self.log_fn(f"📦 [Level 3] ArchiveBox 엔진 가동 중...")
+        self.log_fn(f"📦 [Level 3] ArchiveBox 환경 초기화 및 수집 시작...")
         extractors = []
         if "WARC" in options: extractors.append("wget")
         if "PDF" in options: extractors.append("pdf")
         if "Media" in options: extractors.append("media")
         if "Screenshot" in options: extractors.append("screenshot")
         
-        # ArchiveBox CLI 또는 통합 모듈 호출
-        # 현재는 독립 실행 환경 구축을 위해 subprocess 권장
-        os.environ["OUTPUT_DIR"] = str(job_dir)
         try:
-            subprocess.run(["archivebox", "add", url, f"--extract={','.join(extractors)}"], cwd=job_dir, check=False)
+            # 1. Init collection in the job directory
+            subprocess.run(["archivebox", "init", "--non-interactive"], cwd=job_dir, capture_output=True, check=False)
+            # 2. Add URL
+            result = subprocess.run(["archivebox", "add", url, f"--extract={','.join(extractors)}"], 
+                                    cwd=job_dir, capture_output=True, text=True, check=False)
+            if result.returncode != 0:
+                self.log_fn(f"❌ Level 3 실패: {result.stderr[-200:]}")
+            else:
+                self.log_fn("✔ Level 3 심층 아카이브 완료")
         except Exception as e:
-            self.log_fn(f"❌ ArchiveBox 오류: {e}")
+            self.log_fn(f"❌ ArchiveBox 예외: {e}")
 
     def save_to_library(self, data):
         """아카이브 결과를 중앙 인덱스 파일에 기록합니다."""
