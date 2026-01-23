@@ -104,54 +104,48 @@ class ArchivePage(QWidget):
         self.url_input.setStyleSheet("padding: 10px; border: 1px solid #444; border-radius: 4px; background: #1a1a1a; color: white; font-size: 14px;")
 
         # Options Grid
-        opts_lbl = QLabel("보존 형식 및 옵션 (Formats & Options)")
+        opts_lbl = QLabel("보존 강도 및 형식 (EternalWeb Levels)")
         opts_lbl.setStyleSheet("color: #00bbff; font-weight: bold; margin-top: 15px; margin-bottom: 5px;")
         
-        from PySide6.QtWidgets import QCheckBox, QGroupBox, QGridLayout
+        from PySide6.QtWidgets import QCheckBox, QGroupBox, QGridLayout, QVBoxLayout, QLabel
         
-        opts_group = QGroupBox()
-        opts_group.setStyleSheet("border: none;")
-        grid = QGridLayout(opts_group)
-        grid.setContentsMargins(0, 0, 0, 0)
-        
-        # Dynamic / Interactive
-        self.chk_wacz = QCheckBox("WACZ (대화형/SPA)")
-        self.chk_wacz.setToolTip("ArchiveWeb.page를 사용하여 클릭 가능한 동적 아카이브 생성 (React/Vue 등 지원)")
-        self.chk_wacz.setChecked(True)
-        self.chk_wacz.setStyleSheet("color: #e0e0e0;")
+        opts_container = QFrame()
+        opts_layout = QHBoxLayout(opts_container)
+        opts_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Single File
-        self.chk_singlefile = QCheckBox("SingleFile HTML (단일 파일)")
-        self.chk_singlefile.setToolTip("모든 리소스를 하나의 HTML 파일로 압축 저장")
+        # Level 1: SingleFile
+        lv1_box = QGroupBox("Level 1: 신속 (Light)")
+        lv1_box.setStyleSheet("QGroupBox { color: #00ff88; font-weight: bold; border: 1px solid #333; border-radius: 5px; margin-top: 10px; padding-top: 5px; }")
+        lv1_layout = QVBoxLayout(lv1_box)
+        self.chk_singlefile = QCheckBox("SingleFile HTML")
         self.chk_singlefile.setChecked(True)
-        self.chk_singlefile.setStyleSheet("color: #e0e0e0;")
+        lv1_layout.addWidget(self.chk_singlefile)
+        lv1_layout.addWidget(QLabel("단일 파일 완벽 보존", styleSheet="color: #666; font-size: 11px;"))
 
-        # Capture Types
-        self.chk_pdf = QCheckBox("PDF 문서 (Document)")
-        self.chk_pdf.setStyleSheet("color: #e0e0e0;")
-        self.chk_screenshot = QCheckBox("전체 스크린샷 (Screenshot)")
-        self.chk_screenshot.setStyleSheet("color: #e0e0e0;")
-        
-        # Deep Archive / Assets
-        self.chk_warc = QCheckBox("표준 WARC (Standard)")
-        self.chk_warc.setToolTip("국제 표준 웹 아카이빙 포맷")
-        self.chk_warc.setStyleSheet("color: #e0e0e0;")
-        
-        self.chk_git = QCheckBox("Git 저장소 클론 (Repository)")
-        self.chk_git.setToolTip("URL이 Git 저장소일 경우 전체 소스 코드 클론")
-        self.chk_git.setStyleSheet("color: #e0e0e0;")
+        # Level 2: Interactive
+        lv2_box = QGroupBox("Level 2: 상호작용 (Interactive)")
+        lv2_box.setStyleSheet("QGroupBox { color: #00bbff; font-weight: bold; border: 1px solid #333; border-radius: 5px; margin-top: 10px; padding-top: 5px; }")
+        lv2_layout = QVBoxLayout(lv2_box)
+        self.chk_wacz = QCheckBox("WACZ (SPA/동적)")
+        self.chk_wacz.setChecked(True)
+        lv2_layout.addWidget(self.chk_wacz)
+        lv2_layout.addWidget(QLabel("React, 동적 웹 박제", styleSheet="color: #666; font-size: 11px;"))
 
-        self.chk_media = QCheckBox("미디어 및 자산 (Media/Assets)")
-        self.chk_media.setToolTip("이미지, 비디오, 오디오 및 CDN 자산 다운로드")
-        self.chk_media.setStyleSheet("color: #e0e0e0;")
+        # Level 3: Deep
+        lv3_box = QGroupBox("Level 3: 심층 (Deep)")
+        lv3_box.setStyleSheet("QGroupBox { color: #ffcc00; font-weight: bold; border: 1px solid #333; border-radius: 5px; margin-top: 10px; padding-top: 5px; }")
+        lv3_layout = QVBoxLayout(lv3_box)
+        self.chk_warc = QCheckBox("WARC/Media")
+        self.chk_pdf = QCheckBox("PDF 문서")
+        self.chk_screenshot = QCheckBox("전체 스냅샷")
+        lv3_layout.addWidget(self.chk_warc)
+        lv3_layout.addWidget(self.chk_pdf)
+        lv3_layout.addWidget(self.chk_screenshot)
 
-        grid.addWidget(self.chk_wacz, 0, 0)
-        grid.addWidget(self.chk_singlefile, 0, 1)
-        grid.addWidget(self.chk_pdf, 1, 0)
-        grid.addWidget(self.chk_screenshot, 1, 1)
-        grid.addWidget(self.chk_warc, 2, 0)
-        grid.addWidget(self.chk_media, 2, 1)
-        grid.addWidget(self.chk_git, 3, 0)
+        opts_layout.addWidget(lv1_box)
+        opts_layout.addWidget(lv2_box)
+        opts_layout.addWidget(lv3_box)
+
 
         # Action Button
         btn_layout = QHBoxLayout()
@@ -177,7 +171,7 @@ class ArchivePage(QWidget):
         input_layout.addWidget(lbl_url)
         input_layout.addWidget(self.url_input)
         input_layout.addWidget(opts_lbl)
-        input_layout.addWidget(opts_group)
+        input_layout.addWidget(opts_container)
         input_layout.addLayout(btn_layout)
         
         # Log Output
