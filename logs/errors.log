@@ -1,2 +1,4 @@
 
 > /home/rheehose/문서/EternalWeb-asuperarchiveapp/src/eternalweb/engine/archivebox/__main__.py init --force; TS=2026-01-23__16:58:15 VERSION=dev IN_DOCKER=False IS_TTY=True
+
+> /home/rheehose/문서/EternalWeb-asuperarchiveapp/src/eternalweb/engine/archivebox/__main__.py add --help; TS=2026-01-24__04:37:14 VERSION=dev IN_DOCKER=False IS_TTY=True

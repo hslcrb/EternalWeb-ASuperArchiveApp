@@ -20,12 +20,13 @@ async def capture_wacz_playwright(url, out_path):
         async with async_playwright() as p:
             # Try to find a browser
             browser_type = p.chromium
-            browser = await browser_type.launch(args=["--no-sandbox"])
+            browser = await browser_type.launch(args=["--no-sandbox", "--ignore-certificate-errors"])
             
             # Start recording HAR
             context = await browser.new_context(
                 record_har_path=str(tmp_har),
                 record_har_content="embed",
+                ignore_https_errors=True,
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
             
@@ -51,9 +52,16 @@ async def capture_wacz_playwright(url, out_path):
             
         print(f"[*] HAR created ({tmp_har.stat().st_size} bytes). Converting to WACZ...")
         
-        # Convert HAR to WACZ using the 'wacz' command line tool (installed via pip)
-        # command: wacz create --har <har_file> -o <out_path>
-        res = subprocess.run(["wacz", "create", "--har", str(tmp_har), "-o", str(out_path)], 
+        # venv의 bin 디렉토리에 있는 wacz 명령어를 직접 실행합니다.
+        # sys.executable은 .venv/bin/python 이므로 .venv/bin/wacz 를 찾습니다.
+        venv_bin = Path(sys.executable).parent
+        wacz_cmd = venv_bin / "wacz"
+        if not wacz_cmd.exists():
+            # 윈도우 지원 대비
+            wacz_cmd = venv_bin / "wacz.exe"
+            
+        print(f"[*] Running: {wacz_cmd} create --har {tmp_har} -o {out_path}")
+        res = subprocess.run([str(wacz_cmd), "create", "--har", str(tmp_har), "-o", str(out_path)], 
                              capture_output=True, text=True)
         
         if out_path.exists():
