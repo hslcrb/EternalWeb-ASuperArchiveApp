@@ -78,18 +78,58 @@ class Archiver:
         ts_part = job_dir.name.split('_')[0] + "_" + job_dir.name.split('_')[1]
         results = {"url": url, "timestamp": ts_part, "path": str(job_dir), "formats": []}
         
-        # 1. SingleFile (Level 1)
-        if "SingleFile" in options:
-            out_path = job_dir / "snapshot.html"
-            self.run_singlefile(url, out_path)
-            if out_path.exists(): results["formats"].append("HTML")
+        # 통합 아카이빙 엔진 (Playwright 기반)
+        # Level 1 (HTML)과 Level 2 (WACZ)를 한 번의 브라우저 세션으로 처리합니다.
+        wacz_path = job_dir / "interactive.wacz"
+        html_path = job_dir / "snapshot.html"
+        
+        needed_wacz = "WACZ" in options
+        needed_html = "SingleFile" in options or "HTML" in options
+        
+        if needed_wacz or needed_html:
+            self.log(f"🚀 [통합 엔진] Playwright 고성능 캡처 시작...")
+            capture_script = CORE_DIR / "wacz_capture.py"
             
-        # 2. Playing + WACZ (Level 2)
-        if "WACZ" in options:
-            out_path = job_dir / "interactive.wacz"
-            self.run_interactive_archiver(url, out_path)
-            if out_path.exists(): results["formats"].append("WACZ")
+            # 파라미터 구성
+            cmd = [sys.executable, str(capture_script), url, str(wacz_path)]
+            if needed_html:
+                cmd.append(str(html_path))
             
+            res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            
+            if html_path.exists():
+                self.log("✔ [Level 1] HTML 스냅샷 저장 완료")
+                results["formats"].append("HTML")
+            
+            if wacz_path.exists():
+                self.log("✔ [Level 2] WACZ 인터랙티브 아카이브 완료")
+                results["formats"].append("WACZ")
+            else:
+                self.log(f"⚠ Playwright 캡처 실패 (코드: {res.returncode})")
+                if res.stderr: self.log(f"상세 로그:\n{res.stderr[-500:]}")
+                
+                # Fallback: Browsertrix Crawler (WACZ용)
+                if needed_wacz:
+                    self.log("ℹ 대체 엔진 (Browsertrix) 시도 중...")
+                    save_dir = job_dir / "wacz_tmp"
+                    save_dir.mkdir(exist_ok=True)
+                    # npx @webrecorder/browsertrix-crawler 가 404나면 browsertrix-crawler 도 시도
+                    bt_cmd = ["npx", "-y", "@webrecorder/browsertrix-crawler", "crawl", 
+                           "--url", url, "--generateWACZ", "--output", str(save_dir), "--workers", "1"]
+                    
+                    alt_res = subprocess.run(bt_cmd, capture_output=True, text=True, check=False)
+                    wacz_files = list(save_dir.glob("**/*.wacz"))
+                    if wacz_files:
+                        import shutil
+                        shutil.move(str(wacz_files[0]), str(wacz_path))
+                        self.log("✔ [Level 2] WACZ 완료 (Browsertrix)")
+                        results["formats"].append("WACZ")
+                
+                # Fallback: SingleFile (HTML 전용)
+                if needed_html and not html_path.exists():
+                    self.run_singlefile(url, html_path)
+                    if html_path.exists(): results["formats"].append("HTML")
+
         # 3. ArchiveBox (Level 3)
         if any(opt in options for opt in ["WARC", "Media", "PDF", "Screenshot"]):
             self.run_archivebox(url, options, job_dir)
@@ -106,59 +146,34 @@ class Archiver:
         if self.log_fn:
             self.log_fn(message)
 
-    def run_interactive_archiver(self, url, out_path):
-        self.log(f"🚀 [Level 2] 고 fidelity 아카이빙 시작 (Playwright + WACZ)...")
-        try:
-            capture_script = CORE_DIR / "wacz_capture.py"
-            self.log("ℹ Playwright 엔진 및 브라우저 세션 가동...")
-            
-            # .venv/bin/python 경로를 명확히 하여 독립성 확보
-            venv_python = sys.executable 
-            
-            result = subprocess.run([venv_python, str(capture_script), url, str(out_path)], 
-                                    capture_output=True, text=True, check=False)
-            
-            if result.returncode == 0 and out_path.exists() and out_path.stat().st_size > 1000:
-                self.log("✔ Level 2 WACZ 아카이브 완료 (고화질)")
-            else:
-                self.log(f"⚠ Playwright 캡처 결과물 없음 (코드: {result.returncode}). 상세 로그:\n{result.stdout}\n{result.stderr}")
-                self.log("ℹ Browsertrix Crawler 대체 엔진 시도 중...")
-                save_dir = out_path.parent / "wacz_tmp"
-                save_dir.mkdir(exist_ok=True)
-                # Browsertrix Crawler는 npx로 실행
-                cmd = ["npx", "-y", "@webrecorder/browsertrix-crawler", "crawl", 
-                       "--url", url, "--generateWACZ", "--output", str(save_dir), "--workers", "1"]
-                
-                alt_result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-                wacz_files = list(save_dir.glob("**/*.wacz"))
-                if wacz_files:
-                    import shutil
-                    shutil.move(str(wacz_files[0]), str(out_path))
-                    self.log("✔ Level 2 WACZ 아카이브 완료 (Browsertrix)")
-                else:
-                    self.log(f"❌ Level 2 결국 실패. Browsertrix 로그:\n{alt_result.stderr[-300:]}")
-        except Exception as e:
-            self.log(f"❌ Level 2 예외 발생: {e}")
-
     def run_singlefile(self, url, out_path):
         self.log(f"📸 [Level 1] 스냅샷 추출 중 (single-file-cli)...")
         try:
-            # single-file-cli 옵션 교정: --browser-wait-until 사용
+            # single-file-cli 옵션 최적화: 브라우저 인자 강화 및 대기 시간 조정
             cmd = [
                 "npx", "-y", "single-file-cli", 
                 url, str(out_path), 
-                "--browser-args", '["--no-sandbox", "--ignore-certificate-errors", "--disable-web-security"]',
+                "--browser-args", '["--no-sandbox", "--disable-setuid-sandbox", "--ignore-certificate-errors", "--disable-web-security", "--disable-features=IsolateOrigins,site-per-process"]',
                 "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "--load-deferred-images-dispatch-scroll-event", "true",
-                "--browser-wait-until", "networkIdle"
+                "--browser-wait-until", "networkIdle",
+                "--browser-load-max-time", "120000",
+                "--browser-wait-delay", "3000"
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            # 실행 시 환경 변수에서 NODE_OPTIONS 등을 제거하여 순수 npx 실행 시도
+            env = os.environ.copy()
+            # npm 인증 경고 방지
+            env["NPM_CONFIG_REGISTRY"] = "https://registry.npmjs.org/"
+            
+            result = subprocess.run(cmd, env=env, capture_output=True, text=True, check=False)
             
             if out_path.exists() and out_path.stat().st_size > 500:
                 self.log("✔ Level 1 HTML 스냅샷 저장 완료")
             else:
-                self.log(f"❌ Level 1 실패 (코드: {result.returncode}). 로그:\n{result.stdout}\n{result.stderr[-400:]}")
+                self.log(f"❌ Level 1 실패 (코드: {result.returncode})")
+                if result.stderr: self.log(f"상세 에러:\n{result.stderr[-500:]}")
+                if result.stdout: self.log(f"표준 출력:\n{result.stdout[-200:]}")
         except Exception as e:
             self.log(f"❌ SingleFile 예외 발생: {e}")
 
